@@ -388,13 +388,15 @@
                                     <button class="btn btn-ghost" onclick="cancelarBaixaSelecionadosCpr()" style="padding:4px 8px; font-size:0.9rem; color: var(--danger); border-color: var(--danger); height: auto;">↩️ Desfazer</button>
                                 </div>
                                 <div style="border-left: 1px solid #cbd5e1; height: 25px; margin: 0 2px;"></div>
+                                
                                 <div style="display: flex; gap: 5px; align-items: center; background: #f8fafc; padding: 4px 6px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                                    <button class="btn-acao btn-acao-print" onclick="imprimirCupomCompra()">IMPRIMIR CUPOM 🖨️</button>
                                     <button class="btn-acao btn-acao-cancel" onclick="cancelarCompraSelecionada()">CANCELAR COMPRA ❌</button>
                                 </div>
+                                
                                 <div style="border-left: 1px solid #cbd5e1; height: 25px; margin: 0 2px;"></div>
+                                <button class="btn btn-ghost" onclick="imprimirRelatorioCompras()" style="padding: 0.5rem 0.8rem; font-size: 0.85rem; height: auto;">🖨️ Relatório Lote</button>
                                 <button class="btn btn-payable" onclick="openCompraModal()" style="padding: 0.5rem 0.8rem; font-size: 0.85rem;">+ Nova Compra</button>
-                                <button class="btn btn-ghost" onclick="imprimirCupomCompra()">🖨️ Cupom</button>
-                                <button class="btn btn-payable" onclick="gerarRelatorioContas()">📊 Relatório</button>
                             </div>
                         </div>
 
@@ -1336,6 +1338,176 @@
         async function cancelarBaixaSelecionadosCpr() { const c = document.querySelectorAll('.check-pagar:checked'); if(!c.length) return sysAlert("Selecione."); if(await sysConfirm(`Desfazer pagamento ao fornecedor?`, true)) { const ids = Array.from(c).map(x => parseInt(x.value)); if(desfazerBaixaLogicaCpr(ids) > 0) { saveDB(); renderPagar(); renderPagarHist(); } } }
         async function cancelarBaixaIndividualCpr(id) { if(await sysConfirm(`DESFAZER PAGAMENTO AO FORNECEDOR?`, true)) { if(desfazerBaixaLogicaCpr([id]) > 0) { saveDB(); renderPagar(); renderPagarHist(); } } }
 
+        // --- MÓDULO DE IMPRESSÃO: CONTAS A PAGAR / COMPRAS ---
+        function imprimirCupomCompra() {
+            const checks = document.querySelectorAll('.check-pagar:checked');
+            if (checks.length === 0) return sysAlert("Selecione pelo menos uma compra (caixinha) para imprimir o cupom.");
+            const ids = Array.from(checks).map(cb => parseInt(cb.value));
+            const comprasParaImprimir = db.compras.filter(c => ids.includes(c.id));
+
+            document.getElementById('receipt-print').style.width = '100%';
+            let allHtml = '';
+            
+            comprasParaImprimir.forEach((c) => {
+                const dataEmissao = c.data.split('-').reverse().join('/');
+                const forn = db.fornecedores.find(f => f.id == c.fornecedorId) || {};
+
+                let html = `<div class="pagina-cupom" style="text-align:center;">
+                    <img src="${LOGO_URL}" style="max-height: 70px; margin-bottom: 5px;"><br>
+                    LA SISTEMAS E VAREJÃO<br>Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP<br>
+                    <br><b>*** COMPROVANTE DE COMPRA / ENTRADA ***</b><br>
+                </div>
+                <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
+                <div style="text-align:center;">
+                    <b style="font-size: 16px;">COMPRA Nº ${formatId(c.id)}</b><br>
+                    Data do Lançamento: ${dataEmissao}<br><br>
+                    Cód. Fornecedor: ${c.fornecedorId || '-'}<br>
+                    <b style="font-size: 18px;">${c.fornecedor.toUpperCase()}</b><br>`;
+                
+                if (forn.cnpj) html += `CNPJ: ${forn.cnpj}<br>`;
+                if (forn.telefone) html += `Tel: ${forn.telefone}<br>`;
+                html += `</div><hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">`;
+
+                html += `<table style="width: 100%; border-collapse: collapse;">
+                    <tr><td colspan="3" style="text-align:left; padding-bottom: 5px;">PRODUTOS COMPRADOS</td></tr>
+                    <tr style="border-bottom: 1px dashed #000;">
+                        <td style="text-align:left; padding-bottom:5px;">QTDD</td>
+                        <td style="text-align:center; padding-bottom:5px;">V.CUSTO</td>
+                        <td style="text-align:right; padding-bottom:5px;">V.TOTAL</td>
+                    </tr>`;
+
+                if(c.carrinho && c.carrinho.length > 0) {
+                    c.carrinho.forEach(item => {
+                        html += `<tr><td colspan="3" style="padding-top: 5px;">${item.nome.toUpperCase()}</td></tr>
+                        <tr>
+                            <td style="text-align:left;">${formatCurrency(item.qtd)} ${item.unidade || 'UN'}</td>
+                            <td style="text-align:center;">${formatCurrency(item.unit)}</td>
+                            <td style="text-align:right;">${formatCurrency(item.totalItem)}</td>
+                        </tr>`;
+                    });
+                } else {
+                    html += `<tr><td colspan="3" style="padding-top: 5px;">${c.itens.toUpperCase()}</td></tr>`;
+                }
+                html += `</table>`;
+
+                html += `<hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
+                <div style="display:flex; justify-content:space-between; font-size:16px;">
+                    <span>TOTAL DA COMPRA</span><b>R$ ${formatCurrency(c.total)}</b>
+                </div>
+                <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">`;
+
+                html += `<table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="text-align:left;">VENCIMENTO</td><td style="text-align:right;">SITUAÇÃO</td></tr>`;
+                const dataVenc = c.vencimento ? c.vencimento.split('-').reverse().join('/') : dataEmissao;
+                
+                html += `<tr><td style="text-align:left;">${dataVenc}</td><td style="text-align:right; font-weight: bold;">${c.situacao.toUpperCase()}</td></tr></table>`;
+                html += `<div style="text-align: center; margin-top: 10px;">Método Registrado: ${c.pgtoString}</div>`;
+
+                html += `<br><br><br><p style="margin:5px 0; text-align:center;"><em>Visto do Responsável:</em></p><p style="text-align:center;">_________________________________</p>`;
+                html += `<br><br><div style="text-align:center; font-size:10px;">--✂--</div><br><br><br></div>`;
+                allHtml += html;
+            });
+
+            document.getElementById('receipt-print').innerHTML = allHtml;
+            setTimeout(() => { 
+                window.print(); 
+                setTimeout(() => { document.getElementById('receipt-print').innerHTML = ''; }, 500); 
+            }, 300);
+        }
+
+        function imprimirRelatorioCompras() {
+            let comprasFiltradas = [];
+            const checks = document.querySelectorAll('.check-pagar:checked');
+
+            if (checks.length > 0) {
+                const ids = Array.from(checks).map(cb => parseInt(cb.value));
+                comprasFiltradas = db.compras.filter(c => ids.includes(c.id));
+            } else {
+                const rows = document.querySelectorAll('#pagar-table-body tr');
+                if(rows.length === 0 || rows[0].innerText.includes('Nenhuma')) return sysAlert("Não há compras filtradas na tela para imprimir.");
+                rows.forEach(row => {
+                    const cb = row.querySelector('.check-pagar');
+                    if(cb) {
+                        const c = db.compras.find(x => x.id === parseInt(cb.value));
+                        if(c) comprasFiltradas.push(c);
+                    }
+                });
+            }
+
+            if(comprasFiltradas.length === 0) return sysAlert("Erro ao carregar as compras para impressão.");
+
+            let html = '<div class="pagina-cupom" style="padding: 20px; background: white; font-family: Arial, sans-serif;">';
+            html += `<div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <img src="${LOGO_URL}" style="max-height: 80px;">
+                            <div><h3 style="margin: 0; font-size: 18px;">LA SISTEMAS E VAREJÃO</h3><p style="margin: 3px 0; font-size: 13px; color: #444;">Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP / CEP 14072-055<br>Telefone: (12) 99709-3704</p></div>
+                        </div>
+                        <div style="text-align: right;">
+                            <h2 style="margin: 0; color: #3730a3;">Relatório de Contas a Pagar</h2>
+                            <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Emissão: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</p>
+                            <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Filtro Aplicado: <b style="color: #000;">${filtroPagarAtual.toUpperCase()}</b></p>
+                            <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Total de Lançamentos listados: ${comprasFiltradas.length}</p>
+                        </div>
+                    </div>`;
+
+            html += `<table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px;">
+                        <thead>
+                            <tr style="background: #e0e7ff; text-align: left; border-bottom: 2px solid #c7d2fe;">
+                                <th style="padding: 10px;">Cód / Nº</th>
+                                <th style="padding: 10px;">Data Compra</th>
+                                <th style="padding: 10px;">Fornecedor</th>
+                                <th style="padding: 10px;">Vencimento</th>
+                                <th style="padding: 10px;">Status</th>
+                                <th style="padding: 10px; text-align: right;">Total Compra</th>
+                                <th style="padding: 10px; text-align: right;">Falta Pagar</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            let totalGeral = 0;
+            let totalFalta = 0;
+            const hoje = new Date().toISOString().split('T')[0];
+
+            comprasFiltradas.forEach(c => {
+                const isPago = c.situacao === 'Paga';
+                const isVencida = !isPago && c.vencimento < hoje;
+                let statusTxt = isVencida ? 'VENCIDA' : 'A VENCER';
+                if (isPago) statusTxt = 'PAGO';
+
+                let restante = c.total - (c.valorPago || 0);
+                totalGeral += c.total;
+                totalFalta += restante;
+
+                html += `<tr style="border-bottom: 1px solid #e2e8f0; ${isVencida ? 'background: #fef2f2;' : (isPago ? 'background: #f8fafc;' : '')}">
+                    <td style="padding: 10px;"><b>#${formatId(c.id)}</b></td>
+                    <td style="padding: 10px;">${c.data.split('-').reverse().join('/')}</td>
+                    <td style="padding: 10px;">${c.fornecedor}</td>
+                    <td style="padding: 10px; color: ${isVencida ? '#dc2626' : '#000'}; font-weight: ${isVencida ? 'bold' : 'normal'}">${c.vencimento.split('-').reverse().join('/')}</td>
+                    <td style="padding: 10px;"><b>${statusTxt}</b></td>
+                    <td style="padding: 10px; text-align: right;">R$ ${formatCurrency(c.total)}</td>
+                    <td style="padding: 10px; text-align: right; color: ${restante > 0 ? '#b91c1c' : '#15803d'}; font-weight: bold;">R$ ${formatCurrency(restante)}</td>
+                </tr>`;
+            });
+
+            html += `</tbody>
+                    <tfoot style="background: #f1f5f9; font-weight: bold;">
+                        <tr style="border-top: 2px solid #000;">
+                            <td colspan="5" style="padding: 15px; text-align: right;">TOTAIS NESTE FILTRO:</td>
+                            <td style="padding: 15px; text-align: right;">R$ ${formatCurrency(totalGeral)}</td>
+                            <td style="padding: 15px; text-align: right; color: #b91c1c; font-size: 16px;">R$ ${formatCurrency(totalFalta)}</td>
+                        </tr>
+                    </tfoot>
+                </table><div style="height: 30mm;"></div></div>`;
+
+            document.getElementById('receipt-print').style.width = '100%';
+            document.getElementById('receipt-print').innerHTML = html;
+            window.print();
+            setTimeout(() => { 
+                document.getElementById('receipt-print').innerHTML = ''; 
+                document.getElementById('receipt-print').style.width = '76mm'; 
+            }, 500);
+        }
+
         function setupKeyboardNavigation() {
             const preventSubmit = (e) => { if(e.key === 'Enter') e.preventDefault(); };
             document.getElementById('v-vendedor').addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); autoFillVendedor(); document.getElementById('v-cliente').focus(); } });
@@ -1380,55 +1552,6 @@
                 else if(modalCompra && modalCompra.style.display === 'flex') { e.preventDefault(); document.getElementById('btn-save-compra').click(); }
             } 
         });
-    
-// === NOVAS FUNÇÕES CONTAS A PAGAR ===
-function getComprasSelecionadas(){
-    return compras ? compras.filter(c => c.selecionado) : [];
-}
-
-function imprimirCupomCompra(){
-    const selecionadas = getComprasSelecionadas();
-    if(!selecionadas.length){ sysAlert("Selecione uma compra!"); return; }
-
-    let html = "";
-    selecionadas.forEach(c=>{
-        html += `
-        <div class="pagina-cupom">
-            <center><b>COMPROVANTE DE COMPRA</b></center>
-            <hr>
-            Código: ${c.codigo}<br>
-            Data: ${c.data}<br>
-            Fornecedor: ${c.fornecedor}<br>
-            --------------------------------
-            TOTAL: R$ ${c.total}<br>
-            Vencimento: ${c.vencimento}<br>
-            Status: ${c.status}<br>
-            --------------------------------
-        </div>`;
-    });
-
-    document.getElementById("receipt-print").innerHTML = html;
-    window.print();
-}
-
-function gerarRelatorioContas(){
-    const lista = compras || [];
-    const todas = lista.length;
-    const vencer = lista.filter(c=>c.status==="A Vencer").length;
-    const vencidas = lista.filter(c=>c.status==="Vencidas").length;
-    const pagas = lista.filter(c=>c.status==="Pagas").length;
-
-    let rel = `
-RELATÓRIO DE CONTAS A PAGAR
-
-TOTAL: ${todas}
-A VENCER: ${vencer}
-VENCIDAS: ${vencidas}
-PAGAS: ${pagas}
-`;
-    sysAlert(rel);
-}
-
-</script>
+    </script>
 </body>
 </html>
