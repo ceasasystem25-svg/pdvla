@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Vendas Pro v10.33 - Correção Final Impressão Compras</title>
+    <title>Sistema PDV Nuvem - Start Zero</title>
     <style>
         :root { --primary: #2563eb; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f3f4f6; --text: #1f2937; --info: #0ea5e9; --payable: #6366f1; }
         
@@ -122,7 +122,7 @@
     <header class="no-print">
         <div class="logo-container">
             <img src="https://dummyimage.com/150x50/2563eb/ffffff.png&text=LOGO+AQUI" id="main-logo-img" alt="Logo da Empresa">
-            <h2 style="margin:0">LA SISTEMAS-VENDAS PDV</h2>
+            <h2 style="margin:0">VendaFlow Pro</h2>
         </div>
         <nav>
             <button id="nav-home" onclick="navigate('home')">Início/Vendas</button>
@@ -699,6 +699,32 @@
 
     <div id="receipt-print" style="padding: 0 5mm;"></div>
 
+    
+    <!-- FIREBASE SDK -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+      import { getFirestore, collection, getDocs, setDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyCyAG-2sLHfmF7LMzkOBC6DiSrTRH3AKto",
+        authDomain: "vendaspdv-8e06a.firebaseapp.com",
+        projectId: "vendaspdv-8e06a",
+        storageBucket: "vendaspdv-8e06a.firebasestorage.app",
+        messagingSenderId: "657979956169",
+        appId: "1:657979956169:web:06ed3fa5b9922df01c2618"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const dbFirebase = getFirestore(app);
+      
+      window.dbFirebase = dbFirebase;
+      window.setDoc = setDoc;
+      window.deleteDoc = deleteDoc;
+      window.doc = doc;
+      window.collection = collection;
+      window.getDocs = getDocs;
+    </script>
+    
     <script>
         function sysAlert(msg) {
             return new Promise(resolve => {
@@ -796,6 +822,8 @@
         let verCanceladasGlobal = false; let filtroAcertoAtual = 'Todos'; let carrinhoAtual = []; let pagamentosVenda = []; 
         let filtroPagarAtual = 'Todos'; let cartCpr = []; let pgtosCpr = [];
 
+        
+        // --- BANCO DE DADOS LOCAL E NUVEM ---
         let db = { 
             clientes: JSON.parse(localStorage.getItem('db_clientes')) || [], 
             produtos: JSON.parse(localStorage.getItem('db_produtos')) || [], 
@@ -806,7 +834,95 @@
         };
         db.clientes.forEach(c => { if(c.credito === undefined) c.credito = 0; }); 
 
-        function saveDB() { localStorage.setItem('db_clientes', JSON.stringify(db.clientes)); localStorage.setItem('db_produtos', JSON.stringify(db.produtos)); localStorage.setItem('db_vendas', JSON.stringify(db.vendas)); localStorage.setItem('db_vendedores', JSON.stringify(db.vendedores)); localStorage.setItem('db_fornecedores', JSON.stringify(db.fornecedores)); localStorage.setItem('db_compras', JSON.stringify(db.compras)); updateDashboard(); }
+        // Adicionado para controle de Sincronização Inteligente (Apenas envia o que mudou)
+        let lastDbString = JSON.stringify(db);
+        let syncInProgress = false;
+
+        async function syncChangesToFirestore() {
+            if (syncInProgress || !window.dbFirebase) return;
+            syncInProgress = true;
+            try {
+                const oldDb = JSON.parse(lastDbString);
+                const colNames = ['clientes', 'produtos', 'vendas', 'vendedores', 'fornecedores', 'compras'];
+                
+                for (let col of colNames) {
+                    const currentList = db[col] || [];
+                    const oldList = oldDb[col] || [];
+                    
+                    for (let item of currentList) {
+                        const oldItem = oldList.find(x => x.id === item.id);
+                        if (!oldItem || JSON.stringify(item) !== JSON.stringify(oldItem)) {
+                            await window.setDoc(window.doc(window.dbFirebase, col, String(item.id)), item);
+                        }
+                    }
+                    
+                    for (let oldItem of oldList) {
+                        const exists = currentList.find(x => x.id === oldItem.id);
+                        if (!exists) {
+                            await window.deleteDoc(window.doc(window.dbFirebase, col, String(oldItem.id)));
+                        }
+                    }
+                }
+                lastDbString = JSON.stringify(db);
+            } catch (error) {
+                console.error("Erro ao sincronizar com Firebase:", error);
+            } finally {
+                syncInProgress = false;
+            }
+        }
+
+        async function loadFromFirebase() {
+            if (!window.dbFirebase) return;
+            try {
+                const colNames = ['clientes', 'produtos', 'vendas', 'vendedores', 'fornecedores', 'compras'];
+                let hasData = false;
+                
+                for (let col of colNames) {
+                    const querySnapshot = await window.getDocs(window.collection(window.dbFirebase, col));
+                    db[col] = [];
+                    querySnapshot.forEach((docSnap) => {
+                        db[col].push(docSnap.data());
+                        hasData = true;
+                    });
+                }
+                
+                if (hasData) {
+                    colNames.forEach(col => db[col].sort((a,b) => a.id - b.id));
+                } else {
+                    // Firebase VAZIO = COMEÇAR DO ZERO ABSOLUTO
+                    db = { clientes: [], produtos: [], vendas: [], vendedores: [], fornecedores: [], compras: [] };
+                    localStorage.clear();
+                }
+                
+                db.clientes.forEach(c => { if(c.credito === undefined) c.credito = 0; }); 
+                lastDbString = JSON.stringify(db); 
+                
+                localStorage.setItem('db_clientes', JSON.stringify(db.clientes)); 
+                localStorage.setItem('db_produtos', JSON.stringify(db.produtos)); 
+                localStorage.setItem('db_vendas', JSON.stringify(db.vendas)); 
+                localStorage.setItem('db_vendedores', JSON.stringify(db.vendedores)); 
+                localStorage.setItem('db_fornecedores', JSON.stringify(db.fornecedores)); 
+                localStorage.setItem('db_compras', JSON.stringify(db.compras)); 
+                
+                updateDashboard();
+                renderVendedores(); renderProducts(); renderClients(); renderFornecedores(); renderSales();
+            } catch(e) {
+                console.error("Erro ao carregar do Firebase:", e);
+                sysAlert("Falha ao conectar no banco de dados nas nuvens. Iniciando em modo offline.");
+            }
+        }
+ 
+
+        function saveDB() { 
+            localStorage.setItem('db_clientes', JSON.stringify(db.clientes)); 
+            localStorage.setItem('db_produtos', JSON.stringify(db.produtos)); 
+            localStorage.setItem('db_vendas', JSON.stringify(db.vendas)); 
+            localStorage.setItem('db_vendedores', JSON.stringify(db.vendedores)); 
+            localStorage.setItem('db_fornecedores', JSON.stringify(db.fornecedores)); 
+            localStorage.setItem('db_compras', JSON.stringify(db.compras)); 
+            updateDashboard(); 
+            syncChangesToFirestore(); 
+        }
         function navigate(page) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(page).classList.add('active'); document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-nav')); document.getElementById(`nav-${page}`).classList.add('active-nav'); if(page === 'home') renderSales(); if(page === 'produtos') renderProducts(); if(page === 'clientes') renderClients(); if(page === 'vendedores') renderVendedores(); if(page === 'acerto') { switchAcertoTab('pendentes'); } if(page === 'pagar') { switchPagarTab('lista'); } }
         function closeModal(id) { document.getElementById(id).style.display='none'; }
         
@@ -1602,10 +1718,18 @@
             document.getElementById('modal-compra').style.display = 'flex'; 
         }
 
-        window.onload = () => { 
-            renderVendedores(); renderProducts(); renderClients(); renderFornecedores();
+        window.onload = async () => { 
+            const sysOverlay = document.getElementById('sys-modal-overlay');
+            document.getElementById('sys-modal-title').innerText = "Carregando...";
+            document.getElementById('sys-modal-msg').innerText = "Sincronizando dados com as Nuvens (Firebase). Por favor, aguarde!";
+            document.getElementById('sys-btn-ok').style.display = 'none';
+            document.getElementById('sys-btn-cancel').style.display = 'none';
+            sysOverlay.style.display = 'flex';
             
-            // Garantindo que TODOS os filtros de período iniciem TOTALMENTE em branco por padrão
+            await loadFromFirebase();
+            sysOverlay.style.display = 'none';
+            document.getElementById('sys-btn-ok').style.display = 'inline-block';
+            
             document.getElementById('f-inicio').value = '';
             document.getElementById('f-fim').value = '';
             document.getElementById('f-pagar-inicio').value = '';
@@ -1617,7 +1741,6 @@
             document.getElementById('f-hist-cpr-inicio').value = ''; 
             document.getElementById('f-hist-cpr-fim').value = ''; 
             
-            renderSales(); 
             document.getElementById('nav-home').classList.add('active-nav'); 
             navigate('home'); 
             setupKeyboardNavigation(); 
