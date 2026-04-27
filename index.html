@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Vendas Pro v10.30 - Base Sólida com Compras</title>
+    <title>Sistema de Vendas Pro v10.32 - Correção de Impressão e Filtros</title>
     <style>
         :root { --primary: #2563eb; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f3f4f6; --text: #1f2937; --info: #0ea5e9; --payable: #6366f1; }
         
@@ -923,21 +923,21 @@
         // --- IMPRESSÃO EXATA 10.30 ---
         function abrirModalImpressaoOpcoes() { const checks = document.querySelectorAll('.check-venda:checked'); if(checks.length === 0) return sysAlert("Selecione pelo menos uma venda para imprimir."); document.getElementById('modal-imprimir-opcoes').style.display = 'flex'; }
         function fecharModalImpressaoOpcoes() { document.getElementById('modal-imprimir-opcoes').style.display = 'none'; }
-        function confirmarImpressaoOpcoes() { const checks = document.querySelectorAll('.check-venda:checked'); const ids = Array.from(checks).map(cb => parseInt(cb.value)); const vendasParaImprimir = db.vendas.filter(v => ids.includes(v.id)); let tipos = []; if(document.getElementById('cb-print-empresa').checked) tipos.push('empresa'); if(document.getElementById('cb-print-cliente').checked) tipos.push('cliente'); if(document.getElementById('cb-print-carregador').checked) tipos.push('carregador'); if(tipos.length === 0) return sysAlert("Selecione pelo menos uma via para imprimir."); fecharModalImpressaoOpcoes(); printSelectedTypes(vendasParaImprimir, tipos); }
+        function confirmarImpressaoOpcoes() { const checks = document.querySelectorAll('.check-venda:checked'); const ids = Array.from(checks).map(cb => String(cb.value)); const vendasParaImprimir = db.vendas.filter(v => ids.includes(String(v.id))); let tipos = []; if(document.getElementById('cb-print-empresa').checked) tipos.push('empresa'); if(document.getElementById('cb-print-cliente').checked) tipos.push('cliente'); if(document.getElementById('cb-print-carregador').checked) tipos.push('carregador'); if(tipos.length === 0) return sysAlert("Selecione pelo menos uma via para imprimir."); fecharModalImpressaoOpcoes(); printSelectedTypes(vendasParaImprimir, tipos); }
 
         function gerarHtmlCupom(v, tipo) {
             const dataEmissao = v.dataPedido ? v.dataPedido.split('-').reverse().join('/') : v.data.split('T')[0].split('-').reverse().join('/');
             const cli = db.clientes.find(c => c.id == v.clienteId) || {}; let endCli = ""; if (v.clienteRua) { endCli = `${v.clienteRua}, ${v.clienteNum || 'S/N'} - ${v.clienteCidade || ''}`; } else if (cli.rua) { endCli = `${cli.rua}, ${cli.num || 'S/N'} - ${cli.cidade || ''}`; } else if (v.clienteEnd || cli.endereco) { endCli = v.clienteEnd || cli.endereco; } const telCli = v.clienteTel || cli.telefone || ''; let headerVia = ''; if(tipo === 'empresa') headerVia = '*** VIA DA EMPRESA ***'; else if(tipo === 'cliente') headerVia = '*** VIA DO CLIENTE ***'; else if(tipo === 'carregador') headerVia = '*** VIA DO CARREGADOR ***';
-            let html = `<div style="text-align:center;"><img src="${LOGO_URL}" style="max-height: 70px; margin-bottom: 5px;"><br>LA SISTEMAS E VAREJÃO<br>Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP/CEP 14072-055<br>Telefone (12)99709-3704<br>`; if(headerVia) html += `<br><b>${headerVia}</b><br>`; html += `</div><hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;"><div style="text-align:center;"><b style="font-size: 16px;">VENDA Nº ${formatId(v.id)}</b><br>${dataEmissao}<br>Vendedor: ${v.vendedor ? v.vendedor.toUpperCase() : '-'}<br><br>Código do Cliente: ${v.clienteId || '-'}<br><b style="font-size: 18px;">${v.cliente.toUpperCase()}</b><br>`; if (endCli) html += `${endCli.toUpperCase()}<br>`; if (telCli) html += `Telefone: ${telCli}<br>`; html += `</div><hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;"><table style="width: 100%; border-collapse: collapse;">`;
+            let html = `<div style="text-align:center;"><img src="${LOGO_URL}" style="max-height: 70px; margin-bottom: 5px;"><br>LA SISTEMAS E VAREJÃO<br>Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP/CEP 14072-055<br>Telefone (12)99709-3704<br>`; if(headerVia) html += `<br><b>${headerVia}</b><br>`; html += `</div><hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;"><div style="text-align:center;"><b style="font-size: 16px;">VENDA Nº ${formatId(v.id)}</b><br>${dataEmissao}<br>Vendedor: ${v.vendedor ? v.vendedor.toUpperCase() : '-'}<br><br>Código do Cliente: ${v.clienteId || '-'}<br><b style="font-size: 18px;">${(v.cliente || 'Desconhecido').toUpperCase()}</b><br>`; if (endCli) html += `${endCli.toUpperCase()}<br>`; if (telCli) html += `Telefone: ${telCli}<br>`; html += `</div><hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;"><table style="width: 100%; border-collapse: collapse;">`;
             if (tipo === 'cliente' || tipo === 'empresa') {
                 html += `<tr><td colspan="3" style="text-align:left; padding-bottom: 5px;">PRODUTO</td></tr><tr style="border-bottom: 1px dashed #000;"><td style="text-align:left; padding-bottom:5px;">QTDD UND</td><td style="text-align:center; padding-bottom:5px;">V.UNT</td><td style="text-align:right; padding-bottom:5px;">V.TOTAL</td></tr>`;
-                if(v.carrinho && v.carrinho.length > 0) { v.carrinho.forEach(item => { html += `<tr><td colspan="3" style="padding-top: 5px;">${item.nome.toUpperCase()}</td></tr><tr><td style="text-align:left;">${formatCurrency(item.qtd)} ${item.unidade || 'UN'}</td><td style="text-align:center;">${formatCurrency(item.unit)}</td><td style="text-align:right;">${formatCurrency(item.totalItem)}</td></tr>`; }); } else { html += `<tr><td colspan="3" style="padding-top: 5px;">${v.itens.toUpperCase()}</td></tr>`; } html += `</table>`;
+                if(v.carrinho && v.carrinho.length > 0) { v.carrinho.forEach(item => { html += `<tr><td colspan="3" style="padding-top: 5px;">${(item.nome || 'Produto').toUpperCase()}</td></tr><tr><td style="text-align:left;">${formatCurrency(item.qtd)} ${item.unidade || 'UN'}</td><td style="text-align:center;">${formatCurrency(item.unit)}</td><td style="text-align:right;">${formatCurrency(item.totalItem)}</td></tr>`; }); } else { html += `<tr><td colspan="3" style="padding-top: 5px;">${(v.itens || 'Itens Diversos').toUpperCase()}</td></tr>`; } html += `</table>`;
                 if (v.acres > 0) html += `<div style="text-align:right; margin-top:10px;">Acréscimo: ${formatCurrency(v.acres)}</div>`; if (v.desc > 0) html += `<div style="text-align:right; margin-top:5px;">Desconto: ${formatCurrency(v.desc)}</div>`; html += `<hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;"><div style="display:flex; justify-content:space-between; font-size:16px;"><span>VALOR TOTAL</span><b>${formatCurrency(v.total)}</b></div><hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;"><table style="width: 100%; border-collapse: collapse;"><tr><td style="text-align:left;">VENCIMENTO</td><td style="text-align:center;">FORMA DE PAGTO</td><td style="text-align:right;">VALOR</td></tr>`;
-                let dataVenc = v.vencimento ? v.vencimento.split('-').reverse().join('/') : dataEmissao; let pgtosArray = v.pagamentosVenda || [{metodo: v.pagamento.split(' (')[0], valor: v.total}]; pgtosArray.forEach(p => { html += `<tr><td style="text-align:left;">${dataVenc}</td><td style="text-align:center;">${p.metodo.toUpperCase()}</td><td style="text-align:right;">${formatCurrency(p.valor)}</td></tr>`; }); html += `</table>`;
+                let dataVenc = v.vencimento ? v.vencimento.split('-').reverse().join('/') : dataEmissao; let pgtosArray = v.pagamentosVenda || [{metodo: v.pagamento.split(' (')[0], valor: v.total}]; pgtosArray.forEach(p => { html += `<tr><td style="text-align:left;">${dataVenc}</td><td style="text-align:center;">${(p.metodo || '').toUpperCase()}</td><td style="text-align:right;">${formatCurrency(p.valor)}</td></tr>`; }); html += `</table>`;
                 if(tipo === 'empresa') { html += `<br><br><br><p style="margin:5px 0; text-align:center;"><em>Assinatura do Cliente:</em></p><p style="text-align:center;">_________________________________</p>`; }
             } else if (tipo === 'carregador') {
                 html += `<tr><td colspan="3" style="text-align:center; padding-bottom: 5px;">PRODUTOS PARA SEPARAÇÃO</td></tr><tr style="border-top: 1px dashed #000; border-bottom: 1px dashed #000;"><td style="text-align:left; width: 70%; padding: 5px 0;">PRODUTO</td><td style="text-align:right; width: 15%; padding: 5px 0;">QTD</td><td style="text-align:right; width: 15%; padding: 5px 0;">UND</td></tr>`;
-                if(v.carrinho && v.carrinho.length > 0) { v.carrinho.forEach(item => { html += `<tr><td style="text-align:left; vertical-align:top; padding-top: 8px; padding-right: 5px; word-break: break-word;">${item.nome.toUpperCase()}</td><td style="text-align:right; vertical-align:top; padding-top: 8px; white-space: nowrap;">${formatCurrency(item.qtd)}</td><td style="text-align:right; vertical-align:top; padding-top: 8px; white-space: nowrap;">${item.unidade || 'UN'}</td></tr>`; }); } else { html += `<tr><td colspan="3" style="padding-top: 10px; text-align:center;">${v.itens.toUpperCase()}</td></tr>`; } html += `</table><br><br><br><p style="margin:5px 0; text-align:center;"><em>Assinatura do Conferente:</em></p><p style="text-align:center;">___________________________</p>`;
+                if(v.carrinho && v.carrinho.length > 0) { v.carrinho.forEach(item => { html += `<tr><td style="text-align:left; vertical-align:top; padding-top: 8px; padding-right: 5px; word-break: break-word;">${(item.nome || 'Produto').toUpperCase()}</td><td style="text-align:right; vertical-align:top; padding-top: 8px; white-space: nowrap;">${formatCurrency(item.qtd)}</td><td style="text-align:right; vertical-align:top; padding-top: 8px; white-space: nowrap;">${item.unidade || 'UN'}</td></tr>`; }); } else { html += `<tr><td colspan="3" style="padding-top: 10px; text-align:center;">${(v.itens || 'Itens Diversos').toUpperCase()}</td></tr>`; } html += `</table><br><br><br><p style="margin:5px 0; text-align:center;"><em>Assinatura do Conferente:</em></p><p style="text-align:center;">___________________________</p>`;
             }
             return html;
         }
@@ -949,7 +949,7 @@
             setTimeout(() => { window.print(); setTimeout(() => { document.getElementById('receipt-print').innerHTML = ''; }, 500); }, 300);
         }
 
-        function abrirModalImpressaoAgrupada() { const checks = document.querySelectorAll('.check-venda:checked'); if (checks.length === 0) return sysAlert("Selecione."); const idsSelecionados = Array.from(checks).map(cb => parseInt(cb.value)); const vendasParaImprimir = db.vendas.filter(v => idsSelecionados.includes(v.id)); document.getElementById('preview-relatorio-agrupado').innerHTML = gerarHTMLRelatorioAgrupado(vendasParaImprimir); document.getElementById('modal-impressao-agrupada').style.display = 'flex'; }
+        function abrirModalImpressaoAgrupada() { const checks = document.querySelectorAll('.check-venda:checked'); if (checks.length === 0) return sysAlert("Selecione."); const idsSelecionados = Array.from(checks).map(cb => String(cb.value)); const vendasParaImprimir = db.vendas.filter(v => idsSelecionados.includes(String(v.id))); document.getElementById('preview-relatorio-agrupado').innerHTML = gerarHTMLRelatorioAgrupado(vendasParaImprimir); document.getElementById('modal-impressao-agrupada').style.display = 'flex'; }
         function fecharModalImpressaoAgrupada() { document.getElementById('modal-impressao-agrupada').style.display = 'none'; }
         function confirmarImpressaoAgrupada() { document.getElementById('receipt-print').style.width = '100%'; document.getElementById('receipt-print').innerHTML = document.getElementById('preview-relatorio-agrupado').innerHTML; window.print(); setTimeout(() => { document.getElementById('receipt-print').innerHTML = ''; document.getElementById('receipt-print').style.width = '76mm'; }, 500); }
 
@@ -957,36 +957,51 @@
             let html = '<div class="pagina-cupom" style="padding: 20px; background: white; font-family: Arial, sans-serif;">';
             html += `<div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;"><div style="display: flex; align-items: center; gap: 15px;"><img src="${LOGO_URL}" style="max-height: 80px;"><div><h3 style="margin: 0; font-size: 18px;">LA SISTEMAS E VAREJÃO</h3><p style="margin: 3px 0; font-size: 13px; color: #444;">Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP / CEP 14072-055<br>Telefone: (12) 99709-3704</p></div></div><div style="text-align: right;"><h2 style="margin: 0; color: #1e293b;">Relatório de Vendas (Lote)</h2><p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Emissão: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</p></div></div>`;
             html += '<table style="width:100%; border-collapse: collapse; font-size: 13px;"><tbody>'; let totalGeral = 0; 
-            vendas.forEach(v => { totalGeral += v.total; const dPed = v.dataPedido ? v.dataPedido.split('-').reverse().join('/') : v.data.split('T')[0].split('-').reverse().join('/'); html += `<tr style="border-top: 2px solid #000; background: #f8fafc;"><td colspan="2" style="padding: 8px;"><b>Ped: #${formatId(v.id)} &nbsp;|&nbsp; Vend: ${v.vendedor || '-'} &nbsp;|&nbsp; Data: ${dPed}</b></td><td colspan="2" style="padding: 8px;"><b>Cliente: ${(v.clienteId || '0')} - ${v.cliente.toUpperCase()}</b></td><td style="text-align: right; padding: 8px;"><b>R$ ${formatCurrency(v.total)}</b></td></tr><tr style="border-bottom: 1px solid #cbd5e1; font-weight: bold; background: #f1f5f9;"><td style="width: 5%; text-align:center; padding: 6px;">Item</td><td style="width: 45%; padding: 6px;">Produto</td><td style="width: 15%; text-align:right; padding: 6px;">Qtd</td><td style="width: 15%; text-align:right; padding: 6px;">V. Unit.</td><td style="width: 20%; text-align:right; padding: 6px;">Total Item</td></tr>`; 
-                if (v.carrinho && v.carrinho.length > 0) { v.carrinho.forEach((item, idx) => { html += `<tr><td style="text-align:center; padding: 4px;">${idx + 1}</td><td style="padding: 4px;">${item.prodId || '-'} - ${item.nome.toUpperCase()}</td><td style="text-align:right; padding: 4px;">${item.qtd} ${item.unidade || 'UN'}</td><td style="text-align:right; padding: 4px;">R$ ${formatCurrency(item.unit)}</td><td style="text-align:right; padding: 4px;">R$ ${formatCurrency(item.totalItem)}</td></tr>`; }); } else { html += `<tr><td style="text-align:center; padding: 4px;">1</td><td colspan="4" style="padding: 4px;">${v.itens}</td></tr>`; } html += `<tr><td colspan="5" style="padding-bottom: 15px;"></td></tr>`; 
+            vendas.forEach(v => { totalGeral += v.total; const dPed = v.dataPedido ? v.dataPedido.split('-').reverse().join('/') : v.data.split('T')[0].split('-').reverse().join('/'); html += `<tr style="border-top: 2px solid #000; background: #f8fafc;"><td colspan="2" style="padding: 8px;"><b>Ped: #${formatId(v.id)} &nbsp;|&nbsp; Vend: ${v.vendedor || '-'} &nbsp;|&nbsp; Data: ${dPed}</b></td><td colspan="2" style="padding: 8px;"><b>Cliente: ${(v.clienteId || '0')} - ${(v.cliente || '').toUpperCase()}</b></td><td style="text-align: right; padding: 8px;"><b>R$ ${formatCurrency(v.total)}</b></td></tr><tr style="border-bottom: 1px solid #cbd5e1; font-weight: bold; background: #f1f5f9;"><td style="width: 5%; text-align:center; padding: 6px;">Item</td><td style="width: 45%; padding: 6px;">Produto</td><td style="width: 15%; text-align:right; padding: 6px;">Qtd</td><td style="width: 15%; text-align:right; padding: 6px;">V. Unit.</td><td style="width: 20%; text-align:right; padding: 6px;">Total Item</td></tr>`; 
+                if (v.carrinho && v.carrinho.length > 0) { v.carrinho.forEach((item, idx) => { html += `<tr><td style="text-align:center; padding: 4px;">${idx + 1}</td><td style="padding: 4px;">${item.prodId || '-'} - ${(item.nome || '').toUpperCase()}</td><td style="text-align:right; padding: 4px;">${item.qtd} ${item.unidade || 'UN'}</td><td style="text-align:right; padding: 4px;">R$ ${formatCurrency(item.unit)}</td><td style="text-align:right; padding: 4px;">R$ ${formatCurrency(item.totalItem)}</td></tr>`; }); } else { html += `<tr><td style="text-align:center; padding: 4px;">1</td><td colspan="4" style="padding: 4px;">${v.itens || ''}</td></tr>`; } html += `<tr><td colspan="5" style="padding-bottom: 15px;"></td></tr>`; 
             }); 
             html += `<tr style="border-top: 2px solid #000; font-weight: bold; font-size: 15px;"><td colspan="3" style="padding: 10px;"></td><td style="text-align: right; padding: 10px;">TOTAL (${vendas.length} vendas):</td><td style="text-align: right; padding: 10px; color: #b91c1c;">R$ ${formatCurrency(totalGeral)}</td></tr></tbody></table><div style="height: 30mm;"></div></div>`; return html; 
         }
         
         function gerarRomaneio() {
             const checks = document.querySelectorAll('.check-venda:checked'); if (checks.length === 0) return sysAlert("Selecione as vendas (caixinhas) para gerar o romaneio de carga.");
-            const idsSelecionados = Array.from(checks).map(cb => parseInt(cb.value)); const vendas = db.vendas.filter(v => idsSelecionados.includes(v.id));
+            const idsSelecionados = Array.from(checks).map(cb => String(cb.value)); const vendas = db.vendas.filter(v => idsSelecionados.includes(String(v.id)));
             let produtosAgrupados = {}; let vendedores = new Set();
             vendas.forEach(v => { vendedores.add(v.vendedor || 'Sem Vendedor'); if (v.carrinho && v.carrinho.length > 0) { v.carrinho.forEach(item => { let key = item.prodId ? item.prodId + '-' + item.nome : item.nome; if (!produtosAgrupados[key]) { produtosAgrupados[key] = { id: item.prodId || '-', nome: item.nome, qtd: 0, unidade: item.unidade || 'UN' }; } produtosAgrupados[key].qtd += item.qtd; }); } });
             let nomeVendedor = Array.from(vendedores).join(', ');
             let html = '<div class="pagina-cupom" style="padding: 20px; background: white; font-family: Arial, sans-serif;">';
             html += `<div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;"><div style="display: flex; align-items: center; gap: 15px;"><img src="${LOGO_URL}" style="max-height: 80px;"><div><h3 style="margin: 0; font-size: 18px;">LA SISTEMAS E VAREJÃO</h3><p style="margin: 3px 0; font-size: 13px; color: #444;">Relatório de Romaneio</p></div></div><div style="text-align: right;"><h2 style="margin: 0; color: #1e293b;">ROMANEIO DE CARGA</h2><p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Emissão: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</p><p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">Vendedor(es): <b style="color: #000;">${nomeVendedor.toUpperCase()}</b></p></div></div>`;
             html += `<p style="font-size: 15px;">Total de Pedidos para este carregamento: <b>${vendas.length}</b></p><table style="width:100%; border-collapse: collapse; font-size: 14px; margin-top: 10px;"><thead style="background: #f1f5f9; border-bottom: 2px solid #000;"><tr><th style="padding: 10px; text-align:left; width:15%;">Código</th><th style="padding: 10px; text-align:left; width:60%;">Produto</th><th style="padding: 10px; text-align:right; width:25%;">Qtd Total para Separar</th></tr></thead><tbody>`;
-            let produtosArray = Object.values(produtosAgrupados); produtosArray.sort((a, b) => a.nome.localeCompare(b.nome)); 
-            produtosArray.forEach(p => { html += `<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 10px; color:#666;">${p.id}</td><td style="padding: 10px;"><b>${p.nome.toUpperCase()}</b></td><td style="padding: 10px; text-align:right; font-size: 16px;"><b>${formatCurrency(p.qtd)} ${p.unidade}</b></td></tr>`; });
+            let produtosArray = Object.values(produtosAgrupados); produtosArray.sort((a, b) => (a.nome || '').localeCompare(b.nome || '')); 
+            produtosArray.forEach(p => { html += `<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 10px; color:#666;">${p.id}</td><td style="padding: 10px;"><b>${(p.nome || '').toUpperCase()}</b></td><td style="padding: 10px; text-align:right; font-size: 16px;"><b>${formatCurrency(p.qtd)} ${p.unidade}</b></td></tr>`; });
             if (produtosArray.length === 0) { html += `<tr><td colspan="3" style="padding: 10px; text-align:center;">Nenhum produto detalhado nestas vendas.</td></tr>`; }
             html += `</tbody></table><br><br><br><br><p style="margin:5px 0; text-align:center;"><em>Assinatura do Conferente / Motorista:</em></p><p style="text-align:center;">__________________________________________________</p><div style="height: 30mm;"></div></div>`;
             document.getElementById('receipt-print').style.width = '100%'; document.getElementById('receipt-print').innerHTML = html; window.print(); setTimeout(() => { document.getElementById('receipt-print').innerHTML = ''; document.getElementById('receipt-print').style.width = '76mm'; }, 500);
         }
 
         // --- ACERTO DE CONTAS ---
-        function switchAcertoTab(tab) { document.getElementById('btn-tab-pendentes').classList.remove('active-tab'); document.getElementById('btn-tab-historico').classList.remove('active-tab'); document.getElementById('view-pendentes').style.display = 'none'; document.getElementById('view-historico').style.display = 'none'; if(tab === 'pendentes') { document.getElementById('btn-tab-pendentes').classList.add('active-tab'); document.getElementById('view-pendentes').style.display = 'flex'; renderAcerto(); } else { document.getElementById('btn-tab-historico').classList.add('active-tab'); document.getElementById('view-historico').style.display = 'flex'; const hoje = new Date().toISOString().split('T')[0]; if(!document.getElementById('f-hist-inicio').value) { document.getElementById('f-hist-inicio').value = hoje; document.getElementById('f-hist-fim').value = hoje; } renderHistorico(); } }
+        function switchAcertoTab(tab) { 
+            document.getElementById('btn-tab-pendentes').classList.remove('active-tab'); 
+            document.getElementById('btn-tab-historico').classList.remove('active-tab'); 
+            document.getElementById('view-pendentes').style.display = 'none'; 
+            document.getElementById('view-historico').style.display = 'none'; 
+            
+            if(tab === 'pendentes') { 
+                document.getElementById('btn-tab-pendentes').classList.add('active-tab'); 
+                document.getElementById('view-pendentes').style.display = 'flex'; 
+                renderAcerto(); 
+            } else { 
+                document.getElementById('btn-tab-historico').classList.add('active-tab'); 
+                document.getElementById('view-historico').style.display = 'flex'; 
+                renderHistorico(); 
+            } 
+        }
         function setFiltroAcerto(filtro) { filtroAcertoAtual = filtro; ['Todos', 'A Vencer', 'Vencidos', 'Pagas'].forEach(f => document.getElementById(`f-acerto-${f}`).classList.remove('active')); document.getElementById(`f-acerto-${filtro}`).classList.add('active'); renderAcerto(); }
         function renderAcerto() { const tbody = document.getElementById('acerto-table-body'); const hoje = new Date().toISOString().split('T')[0]; const busca = (document.getElementById('f-acerto-busca')?.value || '').toLowerCase(); const inicio = document.getElementById('f-acerto-inicio')?.value; const fim = document.getElementById('f-acerto-fim')?.value; document.getElementById('check-all-acerto').checked = false; let contas = db.vendas.filter(v => v.vencimento !== null && v.status === 'Ativa'); contas = contas.filter(v => { const isPago = v.pagamento.startsWith('Acertado'); const isVencido = !isPago && v.vencimento < hoje; const isAVencer = !isPago && v.vencimento >= hoje; if (filtroAcertoAtual === 'Pagas' && !isPago) return false; if (filtroAcertoAtual === 'Vencidos' && !isVencido) return false; if (filtroAcertoAtual === 'A Vencer' && !isAVencer) return false; if (busca && !v.cliente.toLowerCase().includes(busca)) return false; if (inicio && v.vencimento < inicio) return false; if (fim && v.vencimento > fim) return false; return true; }); contas.sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento)); if(contas.length === 0) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 2rem; color: #666;">Nenhuma conta encontrada.</td></tr>`; return; } tbody.innerHTML = contas.map(v => { const isPago = v.pagamento.startsWith('Acertado'); const isVencido = !isPago && v.vencimento < hoje; let rowStyle = isPago ? 'background: #f0fdf4; opacity: 0.8;' : (isVencido ? 'background: #fef2f2;' : ''); let statusBadge = isPago ? '<span class="badge badge-success">PAGO</span>' : (isVencido ? '<span class="badge badge-danger">VENCIDO</span>' : '<span class="badge badge-warning">A VENCER</span>'); let pgtoText = isPago ? `<span style="color: #059669; font-weight: bold;">✔ ${v.pagamento.replace('Acertado (','').replace(')','')}</span>` : '-'; let valorRestante = v.total - (v.valorPago || 0); let faltaTxt = (!isPago && (v.valorPago || 0) > 0) ? `<br><span style="font-size:0.8rem; color:var(--danger)">Falta R$ ${formatCurrency(valorRestante)}</span>` : ''; return `<tr style="${rowStyle}"><td style="text-align: center;"><input type="checkbox" class="check-acerto" value="${v.id}" onchange="highlightRow(this)"></td><td><b>#${formatId(v.id)}</b></td><td>${v.cliente}</td><td style="${isVencido ? 'color: red; font-weight: bold;' : 'white-space: nowrap;'}">${v.vencimento.split('-').reverse().join('/')}</td><td style="white-space: nowrap;"><b>R$ ${formatCurrency(v.total)}</b>${faltaTxt}</td><td style="text-align: center;">${statusBadge}</td><td>${pgtoText}</td></tr>`; }).join(''); }
         function renderHistorico() { const tbody = document.getElementById('historico-table-body'); const busca = (document.getElementById('f-hist-busca')?.value || '').toLowerCase(); const inicio = document.getElementById('f-hist-inicio')?.value; const fim = document.getElementById('f-hist-fim')?.value; let contasComPagamento = db.vendas.filter(v => (v.historicoPgto && v.historicoPgto.length > 0) || v.pagamento.startsWith('Acertado')); let linhas = []; contasComPagamento.forEach(v => { if(v.historicoPgto && v.historicoPgto.length > 0) { v.historicoPgto.forEach(pgto => { const dataPgto = pgto.data.split('T')[0]; if((!busca || v.cliente.toLowerCase().includes(busca)) && (!inicio || dataPgto >= inicio) && (!fim || dataPgto <= fim)) { linhas.push({ dataIso: pgto.data, vendaId: v.id, cliente: v.cliente, metodo: pgto.metodo, valor: pgto.valor }); } }); } else if(v.dataBaixa) { const dataPgto = v.dataBaixa.split('T')[0]; if((!busca || v.cliente.toLowerCase().includes(busca)) && (!inicio || dataPgto >= inicio) && (!fim || dataPgto <= fim)) { linhas.push({ dataIso: v.dataBaixa, vendaId: v.id, cliente: v.cliente, metodo: v.pagamento.replace('Acertado (','').replace(')',''), valor: v.total }); } } }); linhas.sort((a, b) => new Date(b.dataIso) - new Date(a.dataIso)); if(linhas.length === 0) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 2rem; color: #666;">Nenhum registro de pagamento encontrado.</td></tr>`; return; } tbody.innerHTML = linhas.map(l => { const dateObj = new Date(l.dataIso); const dataFormatada = dateObj.toLocaleDateString('pt-BR'); const horaFormatada = dateObj.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}); return `<tr><td style="white-space: nowrap;"><b>${dataFormatada}</b> <span style="color:#888; font-size:0.8rem">${horaFormatada}</span></td><td><b>#${formatId(l.vendaId)}</b></td><td>${l.cliente}</td><td><span style="color: #059669; font-weight: bold;">${l.metodo}</span></td><td style="white-space: nowrap;"><b>R$ ${formatCurrency(l.valor)}</b></td><td style="text-align: center; white-space: nowrap;"><button class="btn btn-ghost" onclick="cancelarBaixaIndividual(${l.vendaId})" style="padding:4px 8px; font-size:0.85rem; color: var(--danger); border-color: var(--danger);">❌ Desfazer</button></td></tr>`; }).join(''); }
         
         function imprimirRelatorioAcerto() { 
-            let contas = []; const checks = document.querySelectorAll('.check-acerto:checked'); if (checks.length > 0) { const ids = Array.from(checks).map(cb => parseInt(cb.value)); contas = db.vendas.filter(v => ids.includes(v.id)); } else { const rows = document.querySelectorAll('#acerto-table-body tr'); if(rows.length === 0 || rows[0].innerText.includes('Nenhuma conta')) return sysAlert("Não há contas filtradas para imprimir."); rows.forEach(row => { const cb = row.querySelector('.check-acerto'); if(cb) { const v = db.vendas.find(v => v.id === parseInt(cb.value)); if(v) contas.push(v); } }); } if(contas.length === 0) return sysAlert("Erro ao carregar contas."); 
+            let contas = []; const checks = document.querySelectorAll('.check-acerto:checked'); if (checks.length > 0) { const ids = Array.from(checks).map(cb => String(cb.value)); contas = db.vendas.filter(v => ids.includes(String(v.id))); } else { const rows = document.querySelectorAll('#acerto-table-body tr'); if(rows.length === 0 || rows[0].innerText.includes('Nenhuma conta')) return sysAlert("Não há contas filtradas para imprimir."); rows.forEach(row => { const cb = row.querySelector('.check-acerto'); if(cb) { const v = db.vendas.find(v => v.id === parseInt(cb.value)); if(v) contas.push(v); } }); } if(contas.length === 0) return sysAlert("Erro ao carregar contas."); 
             let html = '<div class="pagina-cupom" style="padding: 20px; background: white; font-family: Arial, sans-serif;">';
             html += `<div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;"><div style="display: flex; align-items: center; gap: 15px;"><img src="${LOGO_URL}" style="max-height: 80px;"><div><h3 style="margin: 0; font-size: 18px;">LA SISTEMAS E VAREJÃO</h3><p style="margin: 3px 0; font-size: 13px; color: #444;">Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP / CEP 14072-055<br>Telefone: (12) 99709-3704</p></div></div><div style="text-align: right;"><h2 style="margin: 0; color: #1e293b;">Relatório de Acerto de Contas</h2><p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Emissão: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</p><p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Filtro Aplicado: <b style="color: #000;">${filtroAcertoAtual.toUpperCase()}</b></p><p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Total de Contas: ${contas.length}</p></div></div>`;
             html += '<table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px;"><thead><tr style="background: #f1f5f9; text-align: left; border-bottom: 2px solid #cbd5e1;"><th style="padding: 10px;">Venda Nº</th><th style="padding: 10px;">Cliente</th><th style="padding: 10px;">Vencimento</th><th style="padding: 10px;">Status / Pagamento</th><th style="padding: 10px; text-align: right;">Total da Venda</th><th style="padding: 10px; text-align: right;">Falta Receber</th></tr></thead><tbody>'; 
@@ -1140,11 +1155,7 @@
             } else if(tab === 'historico') {
                 document.getElementById('btn-tab-pagar-hist').classList.add('active-tab');
                 document.getElementById('view-pagar-hist').style.display = 'flex';
-                const hoje = new Date().toISOString().split('T')[0]; 
-                if(!document.getElementById('f-hist-cpr-inicio').value) { 
-                    document.getElementById('f-hist-cpr-inicio').value = hoje; 
-                    document.getElementById('f-hist-cpr-fim').value = hoje; 
-                } 
+                // Data padrão agora é em branco, puxando todo o histórico por padrão
                 renderPagarHist();
             } else {
                 document.getElementById('btn-tab-pagar-forn').classList.add('active-tab');
@@ -1285,9 +1296,10 @@
             flt.sort((a,b) => new Date(b.data) - new Date(a.data)); 
             
             tb.innerHTML = flt.map(c => { 
-                const dStr = c.data.split('-').reverse().join('/'); const pg = c.situacao === 'Paga'; const vn = !pg && c.vencimento < hj; 
+                const dStr = c.data ? c.data.split('T')[0].split('-').reverse().join('/') : '-'; 
+                const pg = c.situacao === 'Paga'; const vn = !pg && c.vencimento < hj; 
                 const bg = pg ? '<span class="badge badge-success">PAGO</span>' : (vn ? '<span class="badge badge-danger">VENCIDA</span>' : '<span class="badge badge-warning">A VENCER</span>'); 
-                const vStr = pg ? '-' : `<b style="color:${vn?'red':'#000'}">${c.vencimento.split('-').reverse().join('/')}</b>`; 
+                const vStr = pg ? '-' : `<b style="color:${vn?'red':'#000'}">${c.vencimento ? c.vencimento.split('T')[0].split('-').reverse().join('/') : '-'}</b>`; 
                 let pt = pg ? `<span style="color:#059669;font-weight:bold;">✔ OK</span>` : c.pgtoString; 
                 if(c.historicoPgto && c.historicoPgto.length > 0 && pg) pt = `<span style="color:#059669;font-weight:bold;">✔ Baixado</span>`;
                 let res = c.total - (c.valorPago || 0); 
@@ -1340,79 +1352,90 @@
 
         // --- MÓDULO DE IMPRESSÃO: CONTAS A PAGAR / COMPRAS ---
         function imprimirCupomCompra() {
-            const checks = document.querySelectorAll('.check-pagar:checked');
-            if (checks.length === 0) return sysAlert("Selecione pelo menos uma compra (caixinha) para imprimir o cupom.");
-            const ids = Array.from(checks).map(cb => parseInt(cb.value));
-            const comprasParaImprimir = db.compras.filter(c => ids.includes(c.id));
-
-            document.getElementById('receipt-print').style.width = '100%';
-            let allHtml = '';
-            
-            comprasParaImprimir.forEach((c) => {
-                const dataEmissao = c.data.split('-').reverse().join('/');
-                const forn = db.fornecedores.find(f => f.id == c.fornecedorId) || {};
-
-                let html = `<div class="pagina-cupom" style="text-align:center;">
-                    <img src="${LOGO_URL}" style="max-height: 70px; margin-bottom: 5px;"><br>
-                    LA SISTEMAS E VAREJÃO<br>Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP<br>
-                    <br><b>*** COMPROVANTE DE COMPRA / ENTRADA ***</b><br>
-                </div>
-                <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
-                <div style="text-align:center;">
-                    <b style="font-size: 16px;">COMPRA Nº ${formatId(c.id)}</b><br>
-                    Data do Lançamento: ${dataEmissao}<br><br>
-                    Cód. Fornecedor: ${c.fornecedorId || '-'}<br>
-                    <b style="font-size: 18px;">${c.fornecedor.toUpperCase()}</b><br>`;
+            try {
+                const checks = document.querySelectorAll('.check-pagar:checked');
+                if (checks.length === 0) return sysAlert("Selecione pelo menos uma compra (caixinha) para imprimir o cupom.");
                 
-                if (forn.cnpj) html += `CNPJ: ${forn.cnpj}<br>`;
-                if (forn.telefone) html += `Tel: ${forn.telefone}<br>`;
-                html += `</div><hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">`;
+                // Conversão segura de IDs para String para garantir que o .includes não falhe
+                const ids = Array.from(checks).map(cb => String(cb.value));
+                const comprasParaImprimir = db.compras.filter(c => ids.includes(String(c.id)));
 
-                html += `<table style="width: 100%; border-collapse: collapse;">
-                    <tr><td colspan="3" style="text-align:left; padding-bottom: 5px;">PRODUTOS COMPRADOS</td></tr>
-                    <tr style="border-bottom: 1px dashed #000;">
-                        <td style="text-align:left; padding-bottom:5px;">QTDD</td>
-                        <td style="text-align:center; padding-bottom:5px;">V.CUSTO</td>
-                        <td style="text-align:right; padding-bottom:5px;">V.TOTAL</td>
-                    </tr>`;
+                document.getElementById('receipt-print').style.width = '100%';
+                let allHtml = '';
+                
+                comprasParaImprimir.forEach((c) => {
+                    const dataEmissao = c.data ? c.data.split('T')[0].split('-').reverse().join('/') : '-';
+                    const forn = db.fornecedores.find(f => f.id == c.fornecedorId) || {};
 
-                if(c.carrinho && c.carrinho.length > 0) {
-                    c.carrinho.forEach(item => {
-                        html += `<tr><td colspan="3" style="padding-top: 5px;">${item.nome.toUpperCase()}</td></tr>
-                        <tr>
-                            <td style="text-align:left;">${formatCurrency(item.qtd)} ${item.unidade || 'UN'}</td>
-                            <td style="text-align:center;">${formatCurrency(item.unit)}</td>
-                            <td style="text-align:right;">${formatCurrency(item.totalItem)}</td>
+                    let html = `<div class="pagina-cupom" style="text-align:center;">
+                        <img src="${LOGO_URL}" style="max-height: 70px; margin-bottom: 5px;"><br>
+                        LA SISTEMAS E VAREJÃO<br>Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP<br>
+                        <br><b>*** COMPROVANTE DE COMPRA / ENTRADA ***</b><br>
+                    </div>
+                    <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
+                    <div style="text-align:center;">
+                        <b style="font-size: 16px;">COMPRA Nº ${formatId(c.id)}</b><br>
+                        Data do Lançamento: ${dataEmissao}<br><br>
+                        Cód. Fornecedor: ${c.fornecedorId || '-'}<br>
+                        <b style="font-size: 18px;">${(c.fornecedor || 'Desconhecido').toUpperCase()}</b><br>`;
+                    
+                    if (forn.cnpj) html += `CNPJ: ${forn.cnpj}<br>`;
+                    if (forn.telefone) html += `Tel: ${forn.telefone}<br>`;
+                    html += `</div><hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">`;
+
+                    html += `<table style="width: 100%; border-collapse: collapse;">
+                        <tr><td colspan="3" style="text-align:left; padding-bottom: 5px;">PRODUTOS COMPRADOS</td></tr>
+                        <tr style="border-bottom: 1px dashed #000;">
+                            <td style="text-align:left; padding-bottom:5px;">QTDD</td>
+                            <td style="text-align:center; padding-bottom:5px;">V.CUSTO</td>
+                            <td style="text-align:right; padding-bottom:5px;">V.TOTAL</td>
                         </tr>`;
-                    });
-                } else {
-                    html += `<tr><td colspan="3" style="padding-top: 5px;">${c.itens.toUpperCase()}</td></tr>`;
-                }
-                html += `</table>`;
 
-                html += `<hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
-                <div style="display:flex; justify-content:space-between; font-size:16px;">
-                    <span>TOTAL DA COMPRA</span><b>R$ ${formatCurrency(c.total)}</b>
-                </div>
-                <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">`;
+                    if(c.carrinho && c.carrinho.length > 0) {
+                        c.carrinho.forEach(item => {
+                            // Prevenção de erro caso o produto não tenha nome gravado
+                            html += `<tr><td colspan="3" style="padding-top: 5px;">${(item.nome || 'Produto Sem Nome').toUpperCase()}</td></tr>
+                            <tr>
+                                <td style="text-align:left;">${formatCurrency(item.qtd)} ${item.unidade || 'UN'}</td>
+                                <td style="text-align:center;">${formatCurrency(item.unit)}</td>
+                                <td style="text-align:right;">${formatCurrency(item.totalItem)}</td>
+                            </tr>`;
+                        });
+                    } else {
+                        html += `<tr><td colspan="3" style="padding-top: 5px;">${(c.itens || 'ITENS DIVERSOS').toUpperCase()}</td></tr>`;
+                    }
+                    html += `</table>`;
 
-                html += `<table style="width: 100%; border-collapse: collapse;">
-                    <tr><td style="text-align:left;">VENCIMENTO</td><td style="text-align:right;">SITUAÇÃO</td></tr>`;
-                const dataVenc = c.vencimento ? c.vencimento.split('-').reverse().join('/') : dataEmissao;
-                
-                html += `<tr><td style="text-align:left;">${dataVenc}</td><td style="text-align:right; font-weight: bold;">${c.situacao.toUpperCase()}</td></tr></table>`;
-                html += `<div style="text-align: center; margin-top: 10px;">Método Registrado: ${c.pgtoString}</div>`;
+                    html += `<hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
+                    <div style="display:flex; justify-content:space-between; font-size:16px;">
+                        <span>TOTAL DA COMPRA</span><b>R$ ${formatCurrency(c.total || 0)}</b>
+                    </div>
+                    <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">`;
 
-                html += `<br><br><br><p style="margin:5px 0; text-align:center;"><em>Visto do Responsável:</em></p><p style="text-align:center;">_________________________________</p>`;
-                html += `<br><br><div style="text-align:center; font-size:10px;">--✂--</div><br><br><br></div>`;
-                allHtml += html;
-            });
+                    html += `<table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="text-align:left;">VENCIMENTO</td><td style="text-align:right;">SITUAÇÃO</td></tr>`;
+                    const dataVenc = c.vencimento ? c.vencimento.split('T')[0].split('-').reverse().join('/') : dataEmissao;
+                    
+                    html += `<tr><td style="text-align:left;">${dataVenc}</td><td style="text-align:right; font-weight: bold;">${(c.situacao || 'CONCLUÍDA').toUpperCase()}</td></tr></table>`;
+                    html += `<div style="text-align: center; margin-top: 10px;">Método Registrado: ${c.pgtoString || 'Não informado'}</div>`;
 
-            document.getElementById('receipt-print').innerHTML = allHtml;
-            setTimeout(() => { 
-                window.print(); 
-                setTimeout(() => { document.getElementById('receipt-print').innerHTML = ''; }, 500); 
-            }, 300);
+                    html += `<br><br><br><p style="margin:5px 0; text-align:center;"><em>Visto do Responsável:</em></p><p style="text-align:center;">_________________________________</p>`;
+                    html += `<br><br><div style="text-align:center; font-size:10px;">--✂--</div><br><br><br></div>`;
+                    allHtml += html;
+                });
+
+                document.getElementById('receipt-print').innerHTML = allHtml;
+                setTimeout(() => { 
+                    window.print(); 
+                    setTimeout(() => { 
+                        document.getElementById('receipt-print').innerHTML = ''; 
+                        document.getElementById('receipt-print').style.width = '76mm'; 
+                    }, 500); 
+                }, 300);
+            } catch (error) {
+                console.error("Erro na impressão do cupom: ", error);
+                sysAlert("Ocorreu um erro ao gerar a impressão do cupom. Verifique os dados desta compra.");
+            }
         }
 
         function imprimirRelatorioCompras() {
@@ -1420,15 +1443,15 @@
             const checks = document.querySelectorAll('.check-pagar:checked');
 
             if (checks.length > 0) {
-                const ids = Array.from(checks).map(cb => parseInt(cb.value));
-                comprasFiltradas = db.compras.filter(c => ids.includes(c.id));
+                const ids = Array.from(checks).map(cb => String(cb.value));
+                comprasFiltradas = db.compras.filter(c => ids.includes(String(c.id)));
             } else {
                 const rows = document.querySelectorAll('#pagar-table-body tr');
                 if(rows.length === 0 || rows[0].innerText.includes('Nenhuma')) return sysAlert("Não há compras filtradas na tela para imprimir.");
                 rows.forEach(row => {
                     const cb = row.querySelector('.check-pagar');
                     if(cb) {
-                        const c = db.compras.find(x => x.id === parseInt(cb.value));
+                        const c = db.compras.find(x => String(x.id) === String(cb.value));
                         if(c) comprasFiltradas.push(c);
                     }
                 });
@@ -1478,11 +1501,14 @@
                 totalGeral += c.total;
                 totalFalta += restante;
 
+                const dtCompraStr = c.data ? c.data.split('T')[0].split('-').reverse().join('/') : '-';
+                const dtVencStr = c.vencimento ? c.vencimento.split('T')[0].split('-').reverse().join('/') : '-';
+
                 html += `<tr style="border-bottom: 1px solid #e2e8f0; ${isVencida ? 'background: #fef2f2;' : (isPago ? 'background: #f8fafc;' : '')}">
                     <td style="padding: 10px;"><b>#${formatId(c.id)}</b></td>
-                    <td style="padding: 10px;">${c.data.split('-').reverse().join('/')}</td>
+                    <td style="padding: 10px;">${dtCompraStr}</td>
                     <td style="padding: 10px;">${c.fornecedor}</td>
-                    <td style="padding: 10px; color: ${isVencida ? '#dc2626' : '#000'}; font-weight: ${isVencida ? 'bold' : 'normal'}">${c.vencimento.split('-').reverse().join('/')}</td>
+                    <td style="padding: 10px; color: ${isVencida ? '#dc2626' : '#000'}; font-weight: ${isVencida ? 'bold' : 'normal'}">${dtVencStr}</td>
                     <td style="padding: 10px;"><b>${statusTxt}</b></td>
                     <td style="padding: 10px; text-align: right;">R$ ${formatCurrency(c.total)}</td>
                     <td style="padding: 10px; text-align: right; color: ${restante > 0 ? '#b91c1c' : '#15803d'}; font-weight: bold;">R$ ${formatCurrency(restante)}</td>
@@ -1529,15 +1555,19 @@
         window.onload = () => { 
             renderVendedores(); renderProducts(); renderClients(); renderFornecedores();
             
-            const hojeStr = new Date().toISOString().split('T')[0];
-            document.getElementById('f-inicio').value = hojeStr;
-            document.getElementById('f-fim').value = hojeStr;
-            document.getElementById('f-pagar-inicio').value = hojeStr;
-            document.getElementById('f-pagar-fim').value = hojeStr;
-            
-            renderSales(); 
+            // Garantindo que TODOS os filtros de período iniciem TOTALMENTE em branco por padrão
+            document.getElementById('f-inicio').value = '';
+            document.getElementById('f-fim').value = '';
+            document.getElementById('f-pagar-inicio').value = '';
+            document.getElementById('f-pagar-fim').value = '';
             document.getElementById('f-acerto-inicio').value = ''; 
             document.getElementById('f-acerto-fim').value = ''; 
+            document.getElementById('f-hist-inicio').value = ''; 
+            document.getElementById('f-hist-fim').value = ''; 
+            document.getElementById('f-hist-cpr-inicio').value = ''; 
+            document.getElementById('f-hist-cpr-fim').value = ''; 
+            
+            renderSales(); 
             document.getElementById('nav-home').classList.add('active-nav'); 
             navigate('home'); 
             setupKeyboardNavigation(); 
