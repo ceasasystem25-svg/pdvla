@@ -1439,10 +1439,40 @@
             tb.innerHTML = l.map(x => { const dt = new Date(x.dIso); return `<tr><td style="white-space:nowrap"><b>${dt.toLocaleDateString('pt-BR')}</b> <span style="color:#888;font-size:0.8rem">${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></td><td><b>#${formatId(x.cId)}</b></td><td>${x.forn}</td><td><span style="color:var(--payable);font-weight:bold">${x.met}</span></td><td style="white-space:nowrap"><b>R$ ${formatCurrency(x.val)}</b></td><td style="text-align:center"><button class="btn btn-ghost" onclick="cancelarBaixaIndividualCpr(${x.cId})" style="padding:4px 8px;font-size:0.85rem;color:var(--danger);border-color:var(--danger)">❌ Desfazer</button></td></tr>`; }).join(''); 
         }
 
-        function abrirModalBaixaCpr() { 
-            const c = document.querySelectorAll('.check-pagar:checked'); if(!c.length) return sysAlert("Selecione uma conta a pagar pendente."); 
-            let ht = '<ul style="list-style:none;padding:0;margin:0;">'; let tot = 0; let pg = 0; 
-            c.forEach(cb => { const cp = db.compras.find(x => x.id == cb.value); if(cp) { if(cp.situacao !== 'Paga') { let res = cp.total - (cp.valorPago || 0); tot += res; ht += `<li style="padding:8px 5px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:0.9rem;"><span><b>#${formatId(cp.id)}</b> - ${cp.fornecedor}</span><b>R$ ${formatCurrency(res)}</b></li>`; } else pg++; } }); ht += '</ul>'; 
+        function abrirModalBaixaCpr() {
+            const checks = document.querySelectorAll('.check-pagar:checked');
+            if (checks.length === 0) return sysAlert("Selecione pelo menos uma compra para pagar.");
+            
+            let totalFalta = 0;
+            let html = '<ul style="margin:0; padding-left:20px;">';
+            
+            checks.forEach(cb => {
+                const c = db.compras.find(x => String(x.id) === String(cb.value));
+                if (c) {
+                    let valorTotal = parseFloat(c.total) || 0;
+                    let jaPago = parseFloat(c.valorPago) || 0;
+                    let falta = valorTotal - jaPago;
+                    
+                    if (falta < 0) falta = 0;
+                    totalFalta += falta;
+                    
+                    html += `<li style="margin-bottom:5px;">Compra #${formatId(c.id)} - <b>R$ ${formatCurrency(falta)}</b></li>`;
+                }
+            });
+            html += '</ul>';
+            
+            document.getElementById('lista-baixa-cpr').innerHTML = html;
+            document.getElementById('total-baixa-txt-cpr').innerText = "R$ " + formatCurrency(totalFalta);
+            
+            // Mostrar o campo de valor e preencher com o total
+            const divParcial = document.getElementById('div-baixa-parcial-cpr');
+            const inputValor = document.getElementById('v-baixa-valor-cpr');
+            
+            if (divParcial) divParcial.style.display = 'block';
+            if (inputValor) inputValor.value = formatCurrency(totalFalta);
+            
+            document.getElementById('modal-baixa-cpr').style.display = 'flex';
+        }</b> - ${cp.fornecedor}</span><b>R$ ${formatCurrency(res)}</b></li>`; } else pg++; } }); ht += '</ul>'; 
             if(tot === 0 && pg > 0) return sysAlert("Já estão pagas!"); 
             document.getElementById('lista-baixa-cpr').innerHTML = ht; document.getElementById('total-baixa-txt-cpr').innerText = `R$ ${formatCurrency(tot)}`; 
             if(c.length === 1 && tot > 0) { document.getElementById('div-baixa-parcial-cpr').style.display = 'block'; document.getElementById('v-baixa-valor-cpr').value = tot.toFixed(2).replace('.',',').replace(/(\d)(?=(\d{3})+(?!\d))/g,'$1.'); } else { document.getElementById('div-baixa-parcial-cpr').style.display = 'none'; } 
