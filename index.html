@@ -1482,64 +1482,71 @@
                             <div><h3 style="margin: 0; font-size: 18px;">LA SISTEMAS E VAREJÃO</h3><p style="margin: 3px 0; font-size: 13px; color: #444;">Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP / CEP 14072-055<br>Telefone: (12) 99709-3704</p></div>
                         </div>
                         <div style="text-align: right;">
-                            <h2 style="margin: 0; color: #3730a3;">Relatório de Contas a Pagar</h2>
+                            <h2 style="margin: 0; color: #312e81;">Relatório de Compras (Lote)</h2>
                             <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Emissão: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</p>
                             <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Filtro Aplicado: <b style="color: #000;">${filtroPagarAtual.toUpperCase()}</b></p>
-                            <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">Total de Lançamentos listados: ${comprasFiltradas.length}</p>
                         </div>
                     </div>`;
 
-            html += `<table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px;">
-                        <thead>
-                            <tr style="background: #e0e7ff; text-align: left; border-bottom: 2px solid #c7d2fe;">
-                                <th style="padding: 10px;">Cód / Nº</th>
-                                <th style="padding: 10px;">Data Compra</th>
-                                <th style="padding: 10px;">Fornecedor</th>
-                                <th style="padding: 10px;">Vencimento</th>
-                                <th style="padding: 10px;">Status</th>
-                                <th style="padding: 10px; text-align: right;">Total Compra</th>
-                                <th style="padding: 10px; text-align: right;">Falta Pagar</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-
+            html += '<table style="width:100%; border-collapse: collapse; font-size: 13px;"><tbody>'; 
             let totalGeral = 0;
             let totalFalta = 0;
             const hoje = new Date().toISOString().split('T')[0];
 
             comprasFiltradas.forEach(c => {
+                totalGeral += c.total; 
+                let restante = c.total - (c.valorPago || 0);
+                totalFalta += restante;
+
+                const dtCompraStr = c.data ? c.data.split('T')[0].split('-').reverse().join('/') : '-';
+                const dtVencStr = c.vencimento ? c.vencimento.split('T')[0].split('-').reverse().join('/') : '-';
+                
                 const isPago = c.situacao === 'Paga';
                 const isVencida = !isPago && c.vencimento < hoje;
                 let statusTxt = isVencida ? 'VENCIDA' : 'A VENCER';
                 if (isPago) statusTxt = 'PAGO';
 
-                let restante = c.total - (c.valorPago || 0);
-                totalGeral += c.total;
-                totalFalta += restante;
+                // Header da Compra (Igual ao de Venda)
+                html += `<tr style="border-top: 2px solid #000; background: #f8fafc;">
+                    <td colspan="2" style="padding: 8px;"><b>Compra: #${formatId(c.id)} &nbsp;|&nbsp; Data: ${dtCompraStr} &nbsp;|&nbsp; Venc: ${dtVencStr}</b></td>
+                    <td colspan="2" style="padding: 8px;"><b>Fornecedor: ${(c.fornecedorId || '0')} - ${(c.fornecedor || '').toUpperCase()}</b></td>
+                    <td style="text-align: right; padding: 8px;"><b>R$ ${formatCurrency(c.total)} <span style="font-size: 11px; color: ${restante > 0 ? '#dc2626' : '#15803d'};">(${statusTxt})</span></b></td>
+                </tr>
+                <tr style="border-bottom: 1px solid #cbd5e1; font-weight: bold; background: #f1f5f9;">
+                    <td style="width: 5%; text-align:center; padding: 6px;">Item</td>
+                    <td style="width: 45%; padding: 6px;">Produto</td>
+                    <td style="width: 15%; text-align:right; padding: 6px;">Qtd</td>
+                    <td style="width: 15%; text-align:right; padding: 6px;">V. Custo</td>
+                    <td style="width: 20%; text-align:right; padding: 6px;">Total Item</td>
+                </tr>`; 
 
-                const dtCompraStr = c.data ? c.data.split('T')[0].split('-').reverse().join('/') : '-';
-                const dtVencStr = c.vencimento ? c.vencimento.split('T')[0].split('-').reverse().join('/') : '-';
-
-                html += `<tr style="border-bottom: 1px solid #e2e8f0; ${isVencida ? 'background: #fef2f2;' : (isPago ? 'background: #f8fafc;' : '')}">
-                    <td style="padding: 10px;"><b>#${formatId(c.id)}</b></td>
-                    <td style="padding: 10px;">${dtCompraStr}</td>
-                    <td style="padding: 10px;">${c.fornecedor}</td>
-                    <td style="padding: 10px; color: ${isVencida ? '#dc2626' : '#000'}; font-weight: ${isVencida ? 'bold' : 'normal'}">${dtVencStr}</td>
-                    <td style="padding: 10px;"><b>${statusTxt}</b></td>
-                    <td style="padding: 10px; text-align: right;">R$ ${formatCurrency(c.total)}</td>
-                    <td style="padding: 10px; text-align: right; color: ${restante > 0 ? '#b91c1c' : '#15803d'}; font-weight: bold;">R$ ${formatCurrency(restante)}</td>
-                </tr>`;
-            });
-
-            html += `</tbody>
-                    <tfoot style="background: #f1f5f9; font-weight: bold;">
-                        <tr style="border-top: 2px solid #000;">
-                            <td colspan="5" style="padding: 15px; text-align: right;">TOTAIS NESTE FILTRO:</td>
-                            <td style="padding: 15px; text-align: right;">R$ ${formatCurrency(totalGeral)}</td>
-                            <td style="padding: 15px; text-align: right; color: #b91c1c; font-size: 16px;">R$ ${formatCurrency(totalFalta)}</td>
-                        </tr>
-                    </tfoot>
-                </table><div style="height: 30mm;"></div></div>`;
+                if (c.carrinho && c.carrinho.length > 0) { 
+                    c.carrinho.forEach((item, idx) => { 
+                        html += `<tr>
+                            <td style="text-align:center; padding: 4px;">${idx + 1}</td>
+                            <td style="padding: 4px;">${item.prodId || '-'} - ${(item.nome || '').toUpperCase()}</td>
+                            <td style="text-align:right; padding: 4px;">${formatCurrency(item.qtd)} ${item.unidade || 'UN'}</td>
+                            <td style="text-align:right; padding: 4px;">R$ ${formatCurrency(item.unit)}</td>
+                            <td style="text-align:right; padding: 4px;">R$ ${formatCurrency(item.totalItem)}</td>
+                        </tr>`; 
+                    }); 
+                } else { 
+                    html += `<tr><td style="text-align:center; padding: 4px;">1</td><td colspan="4" style="padding: 4px;">${(c.itens || 'Itens diversos/antigos').toUpperCase()}</td></tr>`; 
+                } 
+                html += `<tr><td colspan="5" style="padding-bottom: 15px;"></td></tr>`; 
+            }); 
+            
+            html += `<tr style="border-top: 2px solid #000; font-weight: bold; font-size: 15px;">
+                <td colspan="3" style="padding: 10px;"></td>
+                <td style="text-align: right; padding: 10px;">TOTAL GERAL:</td>
+                <td style="text-align: right; padding: 10px; color: #1e293b;">R$ ${formatCurrency(totalGeral)}</td>
+            </tr>
+            <tr style="font-weight: bold; font-size: 15px;">
+                <td colspan="3" style="padding: 10px;"></td>
+                <td style="text-align: right; padding: 10px; border-top: 1px solid #cbd5e1;">FALTA PAGAR:</td>
+                <td style="text-align: right; padding: 10px; color: #b91c1c; border-top: 1px solid #cbd5e1;">R$ ${formatCurrency(totalFalta)}</td>
+            </tr>
+            </tbody></table><div style="height: 30mm;"></div></div>`; 
 
             document.getElementById('receipt-print').style.width = '100%';
             document.getElementById('receipt-print').innerHTML = html;
@@ -1627,4 +1634,4 @@
         });
     </script>
 </body>
-</html
+</html>
