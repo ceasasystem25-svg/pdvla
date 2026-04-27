@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Vendas Pro v10.32 - Correção de Impressão e Filtros</title>
+    <title>Sistema de Vendas Pro v10.33 - Correção Final Impressão Compras</title>
     <style>
         :root { --primary: #2563eb; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f3f4f6; --text: #1f2937; --info: #0ea5e9; --payable: #6366f1; }
         
@@ -1350,15 +1350,19 @@
         async function cancelarBaixaSelecionadosCpr() { const c = document.querySelectorAll('.check-pagar:checked'); if(!c.length) return sysAlert("Selecione."); if(await sysConfirm(`Desfazer pagamento ao fornecedor?`, true)) { const ids = Array.from(c).map(x => parseInt(x.value)); if(desfazerBaixaLogicaCpr(ids) > 0) { saveDB(); renderPagar(); renderPagarHist(); } } }
         async function cancelarBaixaIndividualCpr(id) { if(await sysConfirm(`DESFAZER PAGAMENTO AO FORNECEDOR?`, true)) { if(desfazerBaixaLogicaCpr([id]) > 0) { saveDB(); renderPagar(); renderPagarHist(); } } }
 
-        // --- MÓDULO DE IMPRESSÃO: CONTAS A PAGAR / COMPRAS ---
+        // --- MÓDULO DE IMPRESSÃO EXATA E PROTEGIDA: CONTAS A PAGAR / COMPRAS ---
         function imprimirCupomCompra() {
             try {
                 const checks = document.querySelectorAll('.check-pagar:checked');
                 if (checks.length === 0) return sysAlert("Selecione pelo menos uma compra (caixinha) para imprimir o cupom.");
                 
-                // Conversão segura de IDs para String para garantir que o .includes não falhe
-                const ids = Array.from(checks).map(cb => String(cb.value));
-                const comprasParaImprimir = db.compras.filter(c => ids.includes(String(c.id)));
+                let comprasParaImprimir = [];
+                checks.forEach(cb => {
+                    const cp = db.compras.find(x => x.id == cb.value);
+                    if(cp) comprasParaImprimir.push(cp);
+                });
+
+                if (comprasParaImprimir.length === 0) return sysAlert("Erro ao encontrar os dados da compra selecionada.");
 
                 document.getElementById('receipt-print').style.width = '100%';
                 let allHtml = '';
@@ -1366,6 +1370,8 @@
                 comprasParaImprimir.forEach((c) => {
                     const dataEmissao = c.data ? c.data.split('T')[0].split('-').reverse().join('/') : '-';
                     const forn = db.fornecedores.find(f => f.id == c.fornecedorId) || {};
+
+                    let nomeForn = c.fornecedor || 'FORNECEDOR NÃO INFORMADO';
 
                     let html = `<div class="pagina-cupom" style="text-align:center;">
                         <img src="${LOGO_URL}" style="max-height: 70px; margin-bottom: 5px;"><br>
@@ -1377,7 +1383,7 @@
                         <b style="font-size: 16px;">COMPRA Nº ${formatId(c.id)}</b><br>
                         Data do Lançamento: ${dataEmissao}<br><br>
                         Cód. Fornecedor: ${c.fornecedorId || '-'}<br>
-                        <b style="font-size: 18px;">${(c.fornecedor || 'Desconhecido').toUpperCase()}</b><br>`;
+                        <b style="font-size: 18px;">${String(nomeForn).toUpperCase()}</b><br>`;
                     
                     if (forn.cnpj) html += `CNPJ: ${forn.cnpj}<br>`;
                     if (forn.telefone) html += `Tel: ${forn.telefone}<br>`;
@@ -1393,8 +1399,8 @@
 
                     if(c.carrinho && c.carrinho.length > 0) {
                         c.carrinho.forEach(item => {
-                            // Prevenção de erro caso o produto não tenha nome gravado
-                            html += `<tr><td colspan="3" style="padding-top: 5px;">${(item.nome || 'Produto Sem Nome').toUpperCase()}</td></tr>
+                            let nomeProd = item.nome || 'PRODUTO NÃO NOMEADO';
+                            html += `<tr><td colspan="3" style="padding-top: 5px;">${String(nomeProd).toUpperCase()}</td></tr>
                             <tr>
                                 <td style="text-align:left;">${formatCurrency(item.qtd)} ${item.unidade || 'UN'}</td>
                                 <td style="text-align:center;">${formatCurrency(item.unit)}</td>
@@ -1402,7 +1408,14 @@
                             </tr>`;
                         });
                     } else {
-                        html += `<tr><td colspan="3" style="padding-top: 5px;">${(c.itens || 'ITENS DIVERSOS').toUpperCase()}</td></tr>`;
+                        // Tratamento blindado para compras antigas que não tinham carrinho
+                        let descItens = c.itens || 'ITENS DIVERSOS / ANTIGOS';
+                        html += `<tr><td colspan="3" style="padding-top: 5px;">${String(descItens).toUpperCase()}</td></tr>
+                            <tr>
+                                <td style="text-align:left;">1 UN</td>
+                                <td style="text-align:center;">${formatCurrency(c.total || 0)}</td>
+                                <td style="text-align:right;">${formatCurrency(c.total || 0)}</td>
+                            </tr>`;
                     }
                     html += `</table>`;
 
@@ -1416,8 +1429,11 @@
                         <tr><td style="text-align:left;">VENCIMENTO</td><td style="text-align:right;">SITUAÇÃO</td></tr>`;
                     const dataVenc = c.vencimento ? c.vencimento.split('T')[0].split('-').reverse().join('/') : dataEmissao;
                     
-                    html += `<tr><td style="text-align:left;">${dataVenc}</td><td style="text-align:right; font-weight: bold;">${(c.situacao || 'CONCLUÍDA').toUpperCase()}</td></tr></table>`;
-                    html += `<div style="text-align: center; margin-top: 10px;">Método Registrado: ${c.pgtoString || 'Não informado'}</div>`;
+                    let sit = c.situacao || 'CONCLUÍDA';
+                    html += `<tr><td style="text-align:left;">${dataVenc}</td><td style="text-align:right; font-weight: bold;">${String(sit).toUpperCase()}</td></tr></table>`;
+                    
+                    let pgtStr = c.pgtoString || 'NÃO INFORMADO';
+                    html += `<div style="text-align: center; margin-top: 10px;">Método Registrado: ${pgtStr}</div>`;
 
                     html += `<br><br><br><p style="margin:5px 0; text-align:center;"><em>Visto do Responsável:</em></p><p style="text-align:center;">_________________________________</p>`;
                     html += `<br><br><div style="text-align:center; font-size:10px;">--✂--</div><br><br><br></div>`;
