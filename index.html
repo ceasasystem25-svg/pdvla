@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Vendas Pro v10.35 - Correção Impressão Compra</title>
+    <title>VendaFlow Pro v10.40 - Padronização Cupom Compra</title>
     <style>
         :root { --primary: #2563eb; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f3f4f6; --text: #1f2937; --info: #0ea5e9; --payable: #6366f1; }
         
@@ -559,7 +559,7 @@
                     <button type="submit" class="btn btn-success" id="btn-save-venda" style="font-size: 1rem; padding: 0.6rem 1.2rem; height: auto;">FINALIZAR (F11)</button>
                 </div>
                 
-                <div id="div-gerar-credito" class="hidden" style="background:#0f172a; padding: 0.8rem 1rem; border-radius: 0 0 8px 8px; border-top: 1px solid #334155;">
+                <div id="div-troco-credito" class="hidden" style="background:#0f172a; padding: 0.8rem 1rem; border-radius: 0 0 8px 8px; border-top: 1px solid #334155;">
                     <label style="color: #4ade80; font-weight: bold; display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; font-size: 0.85rem;">
                         <input type="checkbox" id="v-converter-credito" style="width: 16px; height: 16px;"> NÃO devolver o troco. Guardar como CRÉDITO!
                     </label>
@@ -998,7 +998,7 @@
         function removerPagamentoVenda(index) { pagamentosVenda.splice(index, 1); renderizarPagamentosVenda(); }
         function renderizarPagamentosVenda() { const tbody = document.getElementById('lista-pagamentos-body'); const wrapper = document.getElementById('wrapper-pagamentos'); if(pagamentosVenda.length === 0) { wrapper.style.display = 'none'; } else { wrapper.style.display = 'block'; tbody.innerHTML = pagamentosVenda.map((p, i) => `<tr><td><b>${p.metodo}</b></td><td>R$ ${formatCurrency(p.valor)}</td><td style="color:#64748b; font-size:0.8rem;">${p.info || '-'}</td><td style="text-align: center;"><button type="button" onclick="removerPagamentoVenda(${i})" style="color:var(--danger); background:none; border:none; cursor:pointer; font-weight:bold; font-size:1.2rem;">&times;</button></td></tr>`).join(''); } atualizarTotalTela(); }
         function calcularTotaisVenda() { const somaCarrinho = carrinhoAtual.reduce((acc, item) => acc + item.totalItem, 0); const acres = parseFloat(document.getElementById('v-acres').value) || 0; const desc = parseFloat(document.getElementById('v-desc').value) || 0; const totalVenda = somaCarrinho + acres - desc; const totalPago = pagamentosVenda.reduce((acc, p) => acc + p.valor, 0); const restante = totalVenda - totalPago; return { totalVenda, totalPago, restante }; }
-        function atualizarTotalTela() { const t = calcularTotaisVenda(); document.getElementById('v-total-txt').innerText = formatCurrency(t.totalVenda); document.getElementById('v-pago-txt').innerText = formatCurrency(t.totalPago); const divFalta = document.getElementById('div-falta'); const divTroco = document.getElementById('div-troco'); const divGerarCredito = document.getElementById('div-gerar-credito'); if(t.restante > 0) { divFalta.style.display = 'block'; divTroco.style.display = 'none'; document.getElementById('v-falta-txt').innerText = formatCurrency(t.restante); divGerarCredito.classList.add('hidden'); } else if (t.restante < 0) { divFalta.style.display = 'none'; divTroco.style.display = 'block'; document.getElementById('v-troco-txt').innerText = formatCurrency(Math.abs(t.restante)); if(document.getElementById('v-cliente').value.trim() !== '') { divGerarCredito.classList.remove('hidden'); } } else { divFalta.style.display = 'none'; divTroco.style.display = 'none'; divGerarCredito.classList.add('hidden'); } sugerirValorPgto(); }
+        function atualizarTotalTela() { const t = calcularTotaisVenda(); document.getElementById('v-total-txt').innerText = formatCurrency(t.totalVenda); document.getElementById('v-pago-txt').innerText = formatCurrency(t.totalPago); const divFalta = document.getElementById('div-falta'); const divTroco = document.getElementById('div-troco'); const divGerarCredito = document.getElementById('div-troco-credito'); if(t.restante > 0) { divFalta.style.display = 'block'; divTroco.style.display = 'none'; document.getElementById('v-falta-txt').innerText = formatCurrency(t.restante); divGerarCredito.classList.add('hidden'); } else if (t.restante < 0) { divFalta.style.display = 'none'; divTroco.style.display = 'block'; document.getElementById('v-troco-txt').innerText = formatCurrency(Math.abs(t.restante)); if(document.getElementById('v-cliente').value.trim() !== '') { divGerarCredito.classList.remove('hidden'); } } else { divFalta.style.display = 'none'; divTroco.style.display = 'none'; divGerarCredito.classList.add('hidden'); } sugerirValorPgto(); }
         function openSaleModal() { if(db.vendedores.length === 0) return sysAlert('Cadastre vendedor!'); document.getElementById('form-venda').reset(); document.getElementById('v-id-edit').value = ''; document.getElementById('modal-title-venda').innerText = "Nova Venda"; document.getElementById('v-data').value = new Date().toISOString().split('T')[0]; document.getElementById('div-alerta-credito').style.display = 'none'; carrinhoAtual = []; pagamentosVenda = []; renderizarCarrinhoNaTela(); renderizarPagamentosVenda(); document.getElementById('modal-venda').style.display = 'flex'; setTimeout(() => { document.getElementById('v-vendedor').focus(); }, 100); }
         function editSale(id) { const v = db.vendas.find(v => v.id === id); if(!v) return; document.getElementById('v-id-edit').value = v.id; document.getElementById('v-data').value = v.dataPedido ? v.dataPedido : v.data.split('T')[0]; document.getElementById('v-tipo').value = v.tipo || 'Venda'; const vendedor = db.vendedores.find(vd => vd.nome === v.vendedor); if(vendedor) { document.getElementById('v-vendedor').value = `${vendedor.id} - ${vendedor.nome}`; } else { document.getElementById('v-vendedor').value = v.vendedor || ''; } const cliente = db.clientes.find(c => c.id == v.clienteId); if(cliente) { document.getElementById('v-cliente').value = `${cliente.id} - ${cliente.nome}`; } document.getElementById('v-acres').value = v.acres || 0; document.getElementById('v-desc').value = v.desc || 0; if (v.carrinho) { carrinhoAtual = JSON.parse(JSON.stringify(v.carrinho)); } else { carrinhoAtual = []; } if (v.pagamentosVenda) { pagamentosVenda = JSON.parse(JSON.stringify(v.pagamentosVenda)); } else { pagamentosVenda = [{ metodo: v.pagamento.replace(/Acertado \(/g, '').replace(/\)/g, ''), valor: v.total }]; } renderizarCarrinhoNaTela(); renderizarPagamentosVenda(); document.getElementById('modal-title-venda').innerText = "Editar Venda #" + formatId(v.id); document.getElementById('modal-venda').style.display = 'flex'; }
         function closeSaleModal() { document.getElementById('modal-venda').style.display = 'none'; }
@@ -1012,7 +1012,7 @@
         async function deleteFornecedor(id) { if(await sysConfirm('Excluir?', true)) { db.fornecedores = db.fornecedores.filter(x => x.id !== id); saveDB(); renderFornecedores(); } }
         function autoFillForn() { return formatInputVal('cpr-fornecedor', db.fornecedores); }
         function autoFillProductCpr() { const p = formatInputVal('cpr-prod-input', db.produtos); if(p) document.getElementById('cpr-unit').value = p.preco; return p; }
-        function adicionarAoCarrinhoCpr() { const p = formatInputVal('cpr-prod-input', db.produtos); if(!p) return; const qtd = parseFloat(document.getElementById('cpr-qtd').value) || 0; const unit = parseFloat(document.getElementById('cpr-unit').value) || 0; cartCpr.push({ prodId: p.id, nome: p.nome, qtd, unit, totalItem: qtd * unit }); document.getElementById('cpr-prod-input').value = ""; document.getElementById('cpr-qtd').value = ""; document.getElementById('cpr-unit').value = ""; renderCartCpr(); }
+        function adicionarAoCarrinhoCpr() { const p = formatInputVal('cpr-prod-input', db.produtos); if(!p) return; const qtd = parseFloat(document.getElementById('cpr-qtd').value) || 0; const unit = parseFloat(document.getElementById('cpr-unit').value) || 0; cartCpr.push({ prodId: p.id, nome: p.nome, qtd, unit, totalItem: qtd * unit, unidade: p.unidade || 'UN' }); document.getElementById('cpr-prod-input').value = ""; document.getElementById('cpr-qtd').value = ""; document.getElementById('cpr-unit').value = ""; renderCartCpr(); }
         function removerDoCarrinhoCpr(i) { cartCpr.splice(i, 1); renderCartCpr(); }
         function renderCartCpr() { document.getElementById('wrapper-carrinho-cpr').style.display = cartCpr.length ? 'block' : 'none'; document.getElementById('cart-table-body-cpr').innerHTML = cartCpr.map((item, i) => `<tr><td>${item.prodId}</td><td>${item.nome}</td><td>${item.qtd}</td><td>${formatCurrency(item.unit)}</td><td>${formatCurrency(item.totalItem)}</td><td style="text-align:center;"><button type="button" onclick="removerDoCarrinhoCpr(${i})" style="color:var(--danger); background:none; border:none; cursor:pointer;">X</button></td></tr>`).join(''); calcularTotaisCpr(); }
         function calcularTotaisCpr() { const totalVenda = cartCpr.reduce((a,b) => a+b.totalItem, 0); const totalPago = pgtosCpr.reduce((a,p) => a+p.valor, 0); const restante = totalVenda - totalPago; document.getElementById('cpr-total-txt').innerText = formatCurrency(totalVenda); if(restante > 0) document.getElementById('cpr-pgto-valor').value = restante.toFixed(2).replace('.',','); else document.getElementById('cpr-pgto-valor').value = ""; return { totalVenda, totalPago, restante }; }
@@ -1022,14 +1022,9 @@
         function openCompraModal() { document.getElementById('form-compra').reset(); document.getElementById('cpr-id-edit').value = ''; document.getElementById('cpr-data').value = new Date().toISOString().split('T')[0]; cartCpr = []; pgtosCpr = []; renderCartCpr(); renderPagamentosCpr(); document.getElementById('modal-compra').style.display='flex'; }
         function executeCompra(e) { e.preventDefault(); const t = calcularTotaisCpr(); if(!cartCpr.length || !pgtosCpr.length || t.restante > 0) return sysAlert('Confira os dados!'); const f = formatInputVal('cpr-fornecedor', db.fornecedores); if(!f) return; const dtCpr = document.getElementById('cpr-data').value; const itPrz = pgtosCpr.find(p => p.metodo === 'A Prazo'); let venc = dtCpr; let stat = 'Paga'; if(itPrz) { let d = new Date(dtCpr + "T12:00:00"); d.setDate(d.getDate() + (f.prazo || 0)); venc = d.toISOString().split('T')[0]; stat = 'Pendente'; } const idEdit = document.getElementById('cpr-id-edit').value; const resumo = cartCpr.map(i => `${i.nome} (x${i.qtd})`).join(', '); const pgtoString = pgtosCpr.map(p => `${p.metodo} (${formatCurrency(p.valor)})`).join(' | '); const base = { data: dtCpr, fornecedorId: f.id, fornecedor: f.nome, carrinho: [...cartCpr], pagamentos: [...pgtosCpr], total: t.totalVenda, vencimento: venc, status: 'Ativa', situacao: stat, itens: resumo, pgtoString }; if(idEdit) { const idx = db.compras.findIndex(x => x.id == idEdit); db.compras[idx] = { ...db.compras[idx], ...base }; } else { db.compras.push({ id: db.compras.length ? Math.max(...db.compras.map(x=>x.id))+1 : 1, valorPago: t.totalPago, valorPagoOriginal: t.totalPago, historicoPgto: [], ...base }); } saveDB(); closeModal('modal-compra'); renderPagar(); }
         function setFiltroPagar(f) { filtroPagarAtual = f; ['Todos', 'A Vencer', 'Vencidas', 'Pagas'].forEach(x => document.getElementById('f-btn-pagar-'+x).classList.remove('active')); document.getElementById('f-btn-pagar-'+f).classList.add('active'); renderPagar(); }
-        function renderPagar() { 
-            const tb = document.getElementById('pagar-table-body'); const b = document.getElementById('f-pagar-busca').value.toLowerCase(); const hj = new Date().toISOString().split('T')[0]; 
-            let flt = db.compras.filter(c => c.status === 'Ativa'); 
-            flt = flt.filter(c => { if(b && !c.fornecedor.toLowerCase().includes(b)) return false; const pg = c.situacao === 'Paga'; const vn = !pg && c.vencimento < hj; const av = !pg && c.vencimento >= hj; if(filtroPagarAtual === 'Pagas' && !pg) return false; if(filtroPagarAtual === 'Vencidas' && !vn) return false; if(filtroPagarAtual === 'A Vencer' && !av) return false; return true; }); 
-            tb.innerHTML = flt.map(c => { const pg = c.situacao === 'Paga'; const vn = !pg && c.vencimento < hj; const bg = pg ? '<span class="badge badge-success">PAGO</span>' : (vn ? '<span class="badge badge-danger">VENCIDA</span>' : '<span class="badge badge-warning">A VENCER</span>'); return `<tr><td><input type="checkbox" class="check-pagar" value="${c.id}" onchange="highlightRow(this, 'payable')"></td><td><b>#${formatId(c.id)}</b></td><td>${c.data.split('-').reverse().join('/')}</td><td>${c.fornecedor}</td><td>${c.vencimento.split('-').reverse().join('/')}</td><td><b>R$ ${formatCurrency(c.total)}</b></td><td style="text-align:center;">${bg}</td><td>${c.pgtoString}</td></tr>`; }).join(''); 
-        }
+        function renderPagar() { const tb = document.getElementById('pagar-table-body'); const b = document.getElementById('f-pagar-busca').value.toLowerCase(); const hj = new Date().toISOString().split('T')[0]; let flt = db.compras.filter(c => c.status === 'Ativa'); flt = flt.filter(c => { if(b && !c.fornecedor.toLowerCase().includes(b)) return false; const pg = c.situacao === 'Paga'; const vn = !pg && c.vencimento < hj; const av = !pg && c.vencimento >= hj; if(filtroPagarAtual === 'Pagas' && !pg) return false; if(filtroPagarAtual === 'Vencidas' && !vn) return false; if(filtroPagarAtual === 'A Vencer' && !av) return false; return true; }); tb.innerHTML = flt.map(c => { const pg = c.situacao === 'Paga'; const vn = !pg && c.vencimento < hj; const bg = pg ? '<span class="badge badge-success">PAGO</span>' : (vn ? '<span class="badge badge-danger">VENCIDA</span>' : '<span class="badge badge-warning">A VENCER</span>'); return `<tr><td><input type="checkbox" class="check-pagar" value="${c.id}" onchange="highlightRow(this, 'payable')"></td><td><b>#${formatId(c.id)}</b></td><td>${c.data.split('-').reverse().join('/')}</td><td>${c.fornecedor}</td><td>${c.vencimento.split('-').reverse().join('/')}</td><td><b>R$ ${formatCurrency(c.total)}</b></td><td style="text-align:center;">${bg}</td><td>${c.pgtoString}</td></tr>`; }).join(''); }
 
-        // --- CORREÇÃO DA IMPRESSÃO DO CUPOM DE COMPRA ---
+        // --- CORREÇÃO E PADRONIZAÇÃO DO CUPOM DE COMPRA ---
         function imprimirCupomCompra() {
             const checks = document.querySelectorAll('.check-pagar:checked');
             if (checks.length === 0) return sysAlert("Selecione uma compra.");
@@ -1039,58 +1034,62 @@
                 const cp = db.compras.find(x => x.id == cb.value);
                 if (!cp) return;
 
-                // Garantindo que todos os dados existam para não sair em branco
                 const fornNome = cp.fornecedor || "NÃO INFORMADO";
                 const dataFormatada = cp.data ? cp.data.split('-').reverse().join('/') : "--/--/----";
                 const vencFormatado = cp.vencimento ? cp.vencimento.split('-').reverse().join('/') : "--/--/----";
                 const totalCompra = cp.total || 0;
 
-                let html = `<div class="pagina-cupom">
-                    <div style="text-align:center;">
-                        <img src="${LOGO_URL}" style="max-height: 60px;"><br>
-                        <b>LA SISTEMAS E VAREJÃO</b><br>
-                        Av. Luiz Magioni, 4005 - Ribeirão Preto-SP<br>
-                        <br><b>COMPROVANTE DE COMPRA Nº ${formatId(cp.id)}</b><br>
-                        Data: ${dataFormatada}<br>
-                    </div>
-                    <hr style="border-top:1px dashed #000; margin: 10px 0;">
-                    <div>
-                        <b>FORNECEDOR:</b> ${fornNome.toUpperCase()}<br>
-                        <b>VENCIMENTO:</b> ${vencFormatado}
-                    </div>
-                    <hr style="border-top:1px dashed #000; margin: 10px 0;">
-                    <table style="width:100%; border-collapse: collapse;">
-                        <tr style="border-bottom: 1px dashed #000;">
-                            <td style="text-align:left;"><b>PRODUTO</b></td>
-                            <td style="text-align:right;"><b>QTD</b></td>
-                            <td style="text-align:right;"><b>TOTAL</b></td>
-                        </tr>`;
+                // Template idêntico ao de Venda para manter o padrão visual
+                let html = `<div class="pagina-cupom" style="text-align:center;">
+                    <img src="${LOGO_URL}" style="max-height: 70px; margin-bottom: 5px;"><br>
+                    LA SISTEMAS E VAREJÃO<br>Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP/CEP 14072-055<br>Telefone (12)99709-3704<br>
+                    <br><b>*** COMPROVANTE DE COMPRA / ENTRADA ***</b><br>
+                </div>
+                <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
+                <div style="text-align:center;">
+                    <b style="font-size: 16px;">COMPRA Nº ${formatId(cp.id)}</b><br>
+                    ${dataFormatada}<br><br>
+                    Cód. Fornecedor: ${cp.fornecedorId || '-'}<br>
+                    <b style="font-size: 18px;">${String(fornNome).toUpperCase()}</b><br>
+                </div>
+                <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td colspan="3" style="text-align:left; padding-bottom: 5px;">PRODUTO</td></tr>
+                    <tr style="border-bottom: 1px dashed #000;">
+                        <td style="text-align:left; padding-bottom:5px;">QTDD UND</td>
+                        <td style="text-align:center; padding-bottom:5px;">V.UNT</td>
+                        <td style="text-align:right; padding-bottom:5px;">V.TOTAL</td>
+                    </tr>`;
 
                 if (cp.carrinho && cp.carrinho.length > 0) {
                     cp.carrinho.forEach(it => {
-                        html += `<tr>
-                            <td style="padding: 4px 0;">${(it.nome || 'PRODUTO').toUpperCase()}</td>
-                            <td style="text-align:right;">${it.qtd}</td>
+                        html += `<tr><td colspan="3" style="padding-top: 5px;">${(it.nome || 'Produto').toUpperCase()}</td></tr>
+                        <tr>
+                            <td style="text-align:left;">${formatCurrency(it.qtd)} ${it.unidade || 'UN'}</td>
+                            <td style="text-align:center;">${formatCurrency(it.unit)}</td>
                             <td style="text-align:right;">${formatCurrency(it.totalItem)}</td>
                         </tr>`;
                     });
                 } else {
-                    html += `<tr><td colspan="3" style="padding: 10px 0; text-align:center;">${(cp.itens || 'ITENS DIVERSOS').toUpperCase()}</td></tr>`;
+                    html += `<tr><td colspan="3" style="padding-top: 10px; text-align:center;">${(cp.itens || 'Itens Diversos').toUpperCase()}</td></tr>`;
                 }
 
                 html += `</table>
-                    <hr style="border-top:1px dashed #000; margin: 10px 0;">
-                    <div style="display:flex; justify-content:space-between; font-size: 16px;">
-                        <b>VALOR TOTAL:</b>
-                        <b>R$ ${formatCurrency(totalCompra)}</b>
-                    </div>
-                    <br><br>
-                    <div style="text-align:center;">
-                        _________________________________<br>
-                        Assinatura Responsável
-                    </div>
-                    <br><div style="text-align:center; font-size:10px;">--✂--</div><br>
-                </div>`;
+                <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
+                <div style="display:flex; justify-content:space-between; font-size:16px;">
+                    <span>VALOR TOTAL</span><b>${formatCurrency(totalCompra)}</b>
+                </div>
+                <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="text-align:left;">VENCIMENTO</td><td style="text-align:right;">SITUAÇÃO</td></tr>
+                    <tr><td style="text-align:left;">${vencFormatado}</td><td style="text-align:right;">${String(cp.situacao || 'Paga').toUpperCase()}</td></tr>
+                </table>
+                <br><br><br>
+                <div style="text-align:center;">
+                    <em>Visto do Responsável:</em><br>
+                    _________________________________
+                </div>
+                <br><div style="text-align:center; font-size:10px;">--✂--</div><br><br><br></div>`;
                 htmlFinal += html;
             });
 
@@ -1099,10 +1098,8 @@
             setTimeout(() => { window.print(); document.getElementById('receipt-print').innerHTML = ''; }, 300);
         }
 
-        // Funções de inicialização e teclado
         window.onload = () => { renderVendedores(); renderProducts(); renderClients(); renderFornecedores(); renderSales(); navigate('home'); };
         window.addEventListener('keydown', e => { if(e.key === 'F1') openSaleModal(); });
-        const maskBRLInput = (input) => maskBRL(input);
     </script>
 </body>
 </html>
