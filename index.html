@@ -391,6 +391,7 @@
                                 
                                 <div style="display: flex; gap: 5px; align-items: center; background: #f8fafc; padding: 4px 6px; border-radius: 6px; border: 1px solid #cbd5e1;">
                                     <button class="btn-acao btn-acao-print" onclick="imprimirCupomCompra()">IMPRIMIR CUPOM 🖨️</button>
+                                    <button class="btn-acao btn-acao-edit" onclick="editarCompraSelecionada()">ALTERAR COMPRA ✏️</button>
                                     <button class="btn-acao btn-acao-cancel" onclick="cancelarCompraSelecionada()">CANCELAR COMPRA ❌</button>
                                 </div>
                                 
@@ -1565,6 +1566,33 @@
             document.getElementById('cpr-qtd')?.addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); document.getElementById('cpr-unit').focus(); } });
             document.getElementById('cpr-unit')?.addEventListener('keydown', (e) => { if(e.key === 'Enter') { e.preventDefault(); adicionarAoCarrinhoCpr(); } });
             ['cpr-data', 'cpr-pgto-valor'].forEach(id => { const el = document.getElementById(id); if(el) el.addEventListener('keydown', preventSubmit); });
+        }
+
+        
+        function editarCompraSelecionada() { 
+            const checks = document.querySelectorAll('.check-pagar:checked'); 
+            if(checks.length !== 1) return sysAlert("Selecione exatamente UMA compra na caixa de seleção para editar."); 
+            const idCompra = parseInt(checks[0].value); 
+            const cp = db.compras.find(c => c.id === idCompra); 
+            if(cp && cp.status === 'Ativa') { editCompra(idCompra); } else { sysAlert("Compras canceladas não podem ser editadas."); } 
+        }
+
+        function editCompra(id) { 
+            const cp = db.compras.find(c => c.id === id); if(!cp) return; 
+            document.getElementById('cpr-id-edit').value = cp.id; 
+            document.getElementById('cpr-data').value = cp.data ? (cp.data.includes('T') ? cp.data.split('T')[0] : cp.data) : new Date().toISOString().split('T')[0]; 
+            
+            const forn = db.fornecedores.find(f => f.id == cp.fornecedorId); 
+            if(forn) { document.getElementById('cpr-fornecedor').value = `${forn.id} - ${forn.nome}`; } else { document.getElementById('cpr-fornecedor').value = cp.fornecedor || ''; } 
+            
+            if (cp.carrinho) { cartCpr = JSON.parse(JSON.stringify(cp.carrinho)); } else { cartCpr = []; } 
+            if (cp.pagamentos) { pgtosCpr = JSON.parse(JSON.stringify(cp.pagamentos)); } else { pgtosCpr = [{ metodo: cp.pgtoString ? cp.pgtoString.split(' (')[0] : 'Dinheiro', valor: cp.total }]; } 
+            
+            renderCartCpr(); 
+            renderPagamentosCpr(); 
+            
+            document.getElementById('modal-title-compra').innerText = "Editar Compra #" + formatId(cp.id); 
+            document.getElementById('modal-compra').style.display = 'flex'; 
         }
 
         window.onload = () => { 
