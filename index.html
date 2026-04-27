@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Vendas Pro v10.34 - Layout Cupom Estável</title>
+    <title>Sistema de Vendas Pro v10.33 - Correção Final Impressão Compras</title>
     <style>
         :root { --primary: #2563eb; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f3f4f6; --text: #1f2937; --info: #0ea5e9; --payable: #6366f1; }
         
@@ -1367,13 +1367,15 @@
                 document.getElementById('receipt-print').style.width = '100%';
                 let allHtml = '';
                 
-                comprasParaImprimir.forEach((c) => {
+                comprasParaImprimir.forEach((c, index) => {
                     const dataEmissao = c.data ? c.data.split('T')[0].split('-').reverse().join('/') : '-';
                     const forn = db.fornecedores.find(f => f.id == c.fornecedorId) || {};
-
                     let nomeForn = c.fornecedor || 'FORNECEDOR NÃO INFORMADO';
 
-                    let html = `<div class="pagina-cupom" style="text-align:center;">
+                    // Controle de quebra de página: não quebra se for o último item
+                    let breakStyle = (index === comprasParaImprimir.length - 1) ? 'page-break-after: avoid; border-bottom: none;' : 'page-break-after: always;';
+
+                    let html = `<div class="pagina-cupom" style="text-align:center; ${breakStyle} padding-bottom: 2mm;">
                         <img src="${LOGO_URL}" style="max-height: 70px; margin-bottom: 5px;"><br>
                         LA SISTEMAS E VAREJÃO<br>Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP/CEP 14072-055<br>Telefone (12)99709-3704<br>
                         <br><b>*** COMPROVANTE DE COMPRA / ENTRADA ***</b><br>
@@ -1381,7 +1383,7 @@
                     <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
                     <div style="text-align:center;">
                         <b style="font-size: 16px;">COMPRA Nº ${formatId(c.id)}</b><br>
-                        Data do Lançamento: ${dataEmissao}<br><br>
+                        Data: ${dataEmissao}<br><br>
                         Cód. Fornecedor: ${c.fornecedorId || '-'}<br>
                         <b style="font-size: 18px;">${String(nomeForn).toUpperCase()}</b><br>`;
                     
@@ -1400,7 +1402,7 @@
                     if(c.carrinho && c.carrinho.length > 0) {
                         c.carrinho.forEach(item => {
                             let nomeProd = item.nome || 'PRODUTO NÃO NOMEADO';
-                            html += `<tr><td colspan="3" style="padding-top: 5px;">${String(nomeProd).toUpperCase()}</td></tr>
+                            html += `<tr><td colspan="3" style="padding-top: 5px; text-align:left;">${String(nomeProd).toUpperCase()}</td></tr>
                             <tr>
                                 <td style="text-align:left;">${formatCurrency(item.qtd)} ${item.unidade || 'UN'}</td>
                                 <td style="text-align:center;">${formatCurrency(item.unit)}</td>
@@ -1408,9 +1410,8 @@
                             </tr>`;
                         });
                     } else {
-                        // Tratamento blindado para compras antigas que não tinham carrinho
                         let descItens = c.itens || 'ITENS DIVERSOS / ANTIGOS';
-                        html += `<tr><td colspan="3" style="padding-top: 5px;">${String(descItens).toUpperCase()}</td></tr>
+                        html += `<tr><td colspan="3" style="padding-top: 5px; text-align:left;">${String(descItens).toUpperCase()}</td></tr>
                             <tr>
                                 <td style="text-align:left;">1 UN</td>
                                 <td style="text-align:center;">${formatCurrency(c.total || 0)}</td>
@@ -1428,15 +1429,13 @@
                     html += `<table style="width: 100%; border-collapse: collapse;">
                         <tr><td style="text-align:left;">VENCIMENTO</td><td style="text-align:right;">SITUAÇÃO</td></tr>`;
                     const dataVenc = c.vencimento ? c.vencimento.split('T')[0].split('-').reverse().join('/') : dataEmissao;
-                    
                     let sit = c.situacao || 'CONCLUÍDA';
                     html += `<tr><td style="text-align:left;">${dataVenc}</td><td style="text-align:right; font-weight: bold;">${String(sit).toUpperCase()}</td></tr></table>`;
                     
                     let pgtStr = c.pgtoString || 'NÃO INFORMADO';
-                    html += `<div style="text-align: center; margin-top: 10px;">Método Registrado: ${pgtStr}</div>`;
-
-                    html += `<br><br><br><p style="margin:5px 0; text-align:center;"><em>Visto do Responsável:</em></p><p style="text-align:center;">_________________________________</p>`;
-                    html += `<br><br><div style="text-align:center; font-size:10px;">--✂--</div><br><br><br></div>`;
+                    html += `<div style="text-align: center; margin-top: 5px; font-size: 12px;">Método: ${pgtStr}</div>`;
+                    html += `<br><div style="text-align:center;">_________________________________<br>Visto do Responsável</div>`;
+                    html += `<br><div style="text-align:center; font-size:10px;">--✂--</div></div>`;
                     allHtml += html;
                 });
 
@@ -1450,7 +1449,7 @@
                 }, 300);
             } catch (error) {
                 console.error("Erro na impressão do cupom: ", error);
-                sysAlert("Ocorreu um erro ao gerar a impressão do cupom. Verifique os dados desta compra.");
+                sysAlert("Ocorreu um erro ao gerar a impressão do cupom.");
             }
         }
 
