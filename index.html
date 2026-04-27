@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Vendas Pro v10.33 - Correção Final Impressão Compras</title>
+    <title>Sistema de Vendas Pro v10.34 - Layout Cupom Estável</title>
     <style>
         :root { --primary: #2563eb; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f3f4f6; --text: #1f2937; --info: #0ea5e9; --payable: #6366f1; }
         
@@ -1375,7 +1375,7 @@
 
                     let html = `<div class="pagina-cupom" style="text-align:center;">
                         <img src="${LOGO_URL}" style="max-height: 70px; margin-bottom: 5px;"><br>
-                        LA SISTEMAS E VAREJÃO<br>Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP<br>
+                        LA SISTEMAS E VAREJÃO<br>Av. Luiz Magioni, 4005<br>Ribeirão Preto-SP/CEP 14072-055<br>Telefone (12)99709-3704<br>
                         <br><b>*** COMPROVANTE DE COMPRA / ENTRADA ***</b><br>
                     </div>
                     <hr style="border-top:1px dashed #000; border-bottom:none; margin: 10px 0;">
@@ -1392,8 +1392,8 @@
                     html += `<table style="width: 100%; border-collapse: collapse;">
                         <tr><td colspan="3" style="text-align:left; padding-bottom: 5px;">PRODUTOS COMPRADOS</td></tr>
                         <tr style="border-bottom: 1px dashed #000;">
-                            <td style="text-align:left; padding-bottom:5px;">QTDD</td>
-                            <td style="text-align:center; padding-bottom:5px;">V.CUSTO</td>
+                            <td style="text-align:left; padding-bottom:5px;">QTDD UND</td>
+                            <td style="text-align:center; padding-bottom:5px;">V.UNT</td>
                             <td style="text-align:right; padding-bottom:5px;">V.TOTAL</td>
                         </tr>`;
 
