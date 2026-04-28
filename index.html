@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema PDV - Local e Estável</title>
+    <title>Sistema de Vendas Pro v10.33 - Correção Final Impressão Compras</title>
     <style>
         :root { --primary: #2563eb; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f3f4f6; --text: #1f2937; --info: #0ea5e9; --payable: #6366f1; }
         
@@ -699,6 +699,47 @@
 
     <div id="receipt-print" style="padding: 0 5mm;"></div>
 
+    
+    <!-- CONFIGURAÇÃO FIREBASE -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+      import { getFirestore, collection, getDocs, setDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyCyAG-2sLHfmF7LMzkOBC6DiSrTRH3AKto",
+        authDomain: "vendaspdv-8e06a.firebaseapp.com",
+        projectId: "vendaspdv-8e06a",
+        storageBucket: "vendaspdv-8e06a.firebasestorage.app",
+        messagingSenderId: "657979956169",
+        appId: "1:657979956169:web:06ed3fa5b9922df01c2618"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const dbFirebase = getFirestore(app);
+      
+      // Exportando para o sistema usar
+      window.dbFirebase = dbFirebase;
+      window.setDoc = setDoc;
+      window.deleteDoc = deleteDoc;
+      window.doc = doc;
+      window.collection = collection;
+      window.getDocs = getDocs;
+
+      // Função de Sincronização
+      window.syncToCloud = async function(collectionName, item) {
+          if(!window.dbFirebase) return;
+          try {
+              await window.setDoc(window.doc(window.dbFirebase, collectionName, String(item.id)), item);
+          } catch (e) { console.error("Erro sync:", e); }
+      };
+
+      window.removeFromCloud = async function(collectionName, id) {
+          if(!window.dbFirebase) return;
+          try {
+              await window.deleteDoc(window.doc(window.dbFirebase, collectionName, String(id)));
+          } catch (e) { console.error("Erro delete sync:", e); }
+      };
+    </script>
     <script>
         function sysAlert(msg) {
             return new Promise(resolve => {
@@ -806,7 +847,25 @@
         };
         db.clientes.forEach(c => { if(c.credito === undefined) c.credito = 0; }); 
 
-        function saveDB() { localStorage.setItem('db_clientes', JSON.stringify(db.clientes)); localStorage.setItem('db_produtos', JSON.stringify(db.produtos)); localStorage.setItem('db_vendas', JSON.stringify(db.vendas)); localStorage.setItem('db_vendedores', JSON.stringify(db.vendedores)); localStorage.setItem('db_fornecedores', JSON.stringify(db.fornecedores)); localStorage.setItem('db_compras', JSON.stringify(db.compras)); updateDashboard(); }
+        function saveDB() { 
+            localStorage.setItem('db_clientes', JSON.stringify(db.clientes)); 
+            localStorage.setItem('db_produtos', JSON.stringify(db.produtos)); 
+            localStorage.setItem('db_vendas', JSON.stringify(db.vendas)); 
+            localStorage.setItem('db_vendedores', JSON.stringify(db.vendedores)); 
+            localStorage.setItem('db_fornecedores', JSON.stringify(db.fornecedores)); 
+            localStorage.setItem('db_compras', JSON.stringify(db.compras)); 
+            updateDashboard();
+            
+            // Sincronização em Background (Nuvem)
+            if(window.syncToCloud) {
+                db.clientes.forEach(x => window.syncToCloud('clientes', x));
+                db.produtos.forEach(x => window.syncToCloud('produtos', x));
+                db.vendas.forEach(x => window.syncToCloud('vendas', x));
+                db.vendedores.forEach(x => window.syncToCloud('vendedores', x));
+                db.fornecedores.forEach(x => window.syncToCloud('fornecedores', x));
+                db.compras.forEach(x => window.syncToCloud('compras', x));
+            }
+        }
         function navigate(page) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(page).classList.add('active'); document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-nav')); document.getElementById(`nav-${page}`).classList.add('active-nav'); if(page === 'home') renderSales(); if(page === 'produtos') renderProducts(); if(page === 'clientes') renderClients(); if(page === 'vendedores') renderVendedores(); if(page === 'acerto') { switchAcertoTab('pendentes'); } if(page === 'pagar') { switchPagarTab('lista'); } }
         function closeModal(id) { document.getElementById(id).style.display='none'; }
         
@@ -1336,10 +1395,8 @@
                     let valorTotal = parseFloat(c.total) || 0;
                     let jaPago = parseFloat(c.valorPago) || 0;
                     let falta = valorTotal - jaPago;
-                    
                     if (falta < 0) falta = 0;
                     totalFalta += falta;
-                    
                     html += `<li style="margin-bottom:5px;">Compra #${formatId(c.id)} - <b>R$ ${formatCurrency(falta)}</b></li>`;
                 }
             });
@@ -1348,7 +1405,6 @@
             document.getElementById('lista-baixa-cpr').innerHTML = html;
             document.getElementById('total-baixa-txt-cpr').innerText = "R$ " + formatCurrency(totalFalta);
             
-            // Mostrar o campo de valor e preencher com o total
             const divParcial = document.getElementById('div-baixa-parcial-cpr');
             const inputValor = document.getElementById('v-baixa-valor-cpr');
             
@@ -1629,10 +1685,30 @@
             document.getElementById('modal-compra').style.display = 'flex'; 
         }
 
-        window.onload = () => { 
+        window.onload = async () => { 
+            // Tenta carregar dados da nuvem no início
+            if(window.getDocs) {
+                try {
+                    const cols = ['clientes', 'produtos', 'vendas', 'vendedores', 'fornecedores', 'compras'];
+                    for(let colName of cols) {
+                        const snap = await window.getDocs(window.collection(window.dbFirebase, colName));
+                        if(!snap.empty) {
+                            db[colName] = [];
+                            snap.forEach(d => db[colName].push(d.data()));
+                        }
+                    }
+                    // Re-ordena e salva local
+                    localStorage.setItem('db_clientes', JSON.stringify(db.clientes));
+                    localStorage.setItem('db_produtos', JSON.stringify(db.produtos));
+                    localStorage.setItem('db_vendas', JSON.stringify(db.vendas));
+                    localStorage.setItem('db_vendedores', JSON.stringify(db.vendedores));
+                    localStorage.setItem('db_fornecedores', JSON.stringify(db.fornecedores));
+                    localStorage.setItem('db_compras', JSON.stringify(db.compras));
+                } catch(e) { console.log("Offline ou erro cloud:", e); }
+            }
+
             renderVendedores(); renderProducts(); renderClients(); renderFornecedores();
             
-            // Garantindo que TODOS os filtros de período iniciem TOTALMENTE em branco por padrão
             document.getElementById('f-inicio').value = '';
             document.getElementById('f-fim').value = '';
             document.getElementById('f-pagar-inicio').value = '';
